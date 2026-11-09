@@ -22,6 +22,9 @@ healthy. Live discovery and M0 capability tests passed.
   (129 bytes). No existing run or artifact was modified.
 - UC storage-root.models is file:/data/registry, with authorization disabled.
   Server and notebooks share local-uc_registry-data at /data.
+- MLflow's registry client at uc:http://server:8080 successfully read the existing
+  dbx_cuda.cuml_agentic_payments.agent_behavior registered model. No model was
+  changed; model training/registration for the twin remains deferred to M5.
 - Running notebooks use image local-uc-demo:0.1.0 and bind code from the
   gpu-demo and workspace worktrees beneath LocalUnityCatalog/.local/worktrees.
   The server also mounts configuration from the workspace worktree. The root
@@ -74,3 +77,18 @@ bytes round-tripped; MLflow artifact upload and retrieval matched. All temporary
 catalog objects were removed. The pandas 3.x warning is confined to the platform
 environment; airport dependencies pin pandas 2.x. Existing RAPIDS containers were
 not recreated.
+
+## After M3: verified filming integration
+
+Workspace Notebooks now targets the new Spark service through the additive
+overlay. Python source notebooks open, execute and save through the authenticated
+gateway. The airport kernel uses its pinned uv environment and platform Spark.
+Ordinary .ipynb behavior remains available; source notebooks store code/Markdown,
+not execution output metadata.
+
+Workspace Experiments plots real paginated metric histories for two selected
+runs and renders the logged PNG via a bounded same-origin proxy. Both were
+verified in the browser. Catalog Delta preview returns 50 rows and all six typed
+reading columns; the existing payment preview also returned 50 rows through
+Spark. Preview inputs/results and execution are bounded. The platform checkout's
+docs/airport-filming.md records exact limits and the large-Parquet-file limitation.

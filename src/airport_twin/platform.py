@@ -98,10 +98,15 @@ class Platform:
 
 def notebook_context(namespace: dict[str, Any]) -> tuple[Config, Platform, dict[str, Any]]:
     """Use injected globals locally; real notebook widgets/task values remotely."""
+    logging.basicConfig(level=logging.INFO)
+    logging.getLogger("airport_twin").setLevel(logging.INFO)
     config = Config.from_env()
     if "spark" not in namespace:
         raise RuntimeError("The platform must supply spark; do not create an application engine")
     params = namespace.get("twin_params")
+    if params is None and config.platform == "local":
+        params = {"scenario": "baseline", "seed": 42, "minutes": 60, "run_id": "", "phase": "all"}
+        namespace["twin_params"] = params
     if params is None:
         utils = namespace["dbutils"]
         for key, default in (

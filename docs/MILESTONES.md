@@ -64,3 +64,23 @@ Run commands are in README.md. Native MLflow is http://localhost:5000/mlflow/.
 Earlier M1/M2 runs predate complete artifact logging; use these M3 runs for filming.
 
 Risks: remote Databricks remains UNTESTED; Workspace UI enhancements follow M3.
+
+## Filming integration — passed
+
+Added source-notebook editing, a pinned airport kernel, bounded Spark previews,
+Workspace metric comparison and PNG viewing. The browser verified source
+execution and saving, typed Delta sample data, run comparison retained while
+opening details, the actual delayed-run heatmap and governed view SQL display.
+The existing payment Parquet preview still returns 50 rows through Spark.
+
+UI build: 18 tests and 3 gateway tests passed, production TypeScript compiled.
+Platform regression suite: 5 passed; Ruff clean for airport and platform code.
+Jupyter metadata-only/source-save responses were corrected after a live save
+test, with regression coverage. Ordinary .ipynb behavior is preserved. Source
+files retain code/Markdown boundaries but do not persist outputs or arbitrary
+notebook metadata. FILMING.md records the tested workflow and service selection.
+
+Risks: large Parquet input sets over the 16 MiB whole-file staging cap now fail
+explicitly instead of range-sampling. Delta input sizes are labeled estimates.
+The original RAPIDS service is unchanged; the overlay routes Workspace Notebooks
+to the airport service. Remote execution remains UNTESTED.

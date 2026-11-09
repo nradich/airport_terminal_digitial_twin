@@ -2,12 +2,12 @@
 
 | Capability | Local | Databricks | Status |
 | --- | --- | --- | --- |
-| Compute | Separate Python 3.11 Spark notebook environment | Serverless environment 2 | M0 pending |
-| Tables/views | UC OSS + Spark/Delta | Native UC + Delta | Live discovery pending |
-| Volumes | UC metadata-resolved shared persistent mount | /Volumes/catalog/schema/volume | Adapter pending |
-| Tracking | Existing MLflow server | Workspace MLflow | Live verification pending |
-| Notebook parameters/results | Headless runner context | Widgets/task values | Adapter pending |
-| SQL scalar functions | Timeboxed qualified invocation attempt | Native UC functions | May fall back to governed view SQL |
+| Compute | Separate Python 3.11 Spark notebook environment | Serverless environment 2 | Local verified; remote UNTESTED |
+| Tables/views | UC OSS + Spark/Delta | Native UC + Delta | Local persistent-table/view contracts passed |
+| Volumes | UC metadata-resolved shared persistent mount | /Volumes/catalog/schema/volume | Local round-trip passed; remote UNTESTED |
+| Tracking | Existing MLflow server | Workspace MLflow | Local histories/artifact retrieval passed |
+| Notebook parameters/results | Headless context or explicit interactive dictionary | Widgets/task values | Local browser/runner verified; remote UNTESTED |
+| SQL scalar functions | Governed latest_state SQL fallback | Native UC functions | Local capability rejected; fallback verified |
 | Bundle execution | Local runner; no emulated deployment API | Native bundles | Remote validation UNTESTED |
 
 All platform differences belong in thin adapters. The simulator and USD authoring
