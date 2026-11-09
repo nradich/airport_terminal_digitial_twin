@@ -6,7 +6,8 @@ gates and two shared zones; deterministic baseline and `delay_A4` scenarios.
 ## Current status
 
 Live platform discovery and M0 contracts passed. M1 setup, seeded simulation,
-and data validation ran against real UC/Delta/MLflow. Scene authoring is next.
+and data validation ran against real UC/Delta/MLflow. M2 also published and
+validated a composed ten-asset USD scene without changing the base.
 No remote deployment has been attempted.
 
 - [Verified local platform](docs/LOCAL_PLATFORM.md)
@@ -40,3 +41,19 @@ M1 produces ten assets, eight flights, and 2,520 readings for sixty minutes.
 The local SQL-function attempt is unsupported, so latest_state governs colour
 and status directly. Seeded baseline simulation, Delta writes, and MLflow
 metrics completed in 6.644 seconds on this desktop.
+
+## Run the scene pipeline
+
+Executed locally from the same platform checkout:
+
+```powershell
+docker compose -f compose.yaml -f compose.spark.yaml exec -T spark-notebooks uv run --no-sync airport-twin run --scenario baseline --seed 42
+docker compose -f compose.yaml -f compose.spark.yaml exec -T spark-notebooks uv run --no-sync airport-twin push --run-id 9b5f798c2b114d9ea1622bb0e5b8d8f4
+```
+
+The first command executes 00 → 01 → 02 → 03 → 04. Copy its explicit run ID for
+later pushes; the second command shows the verified run used during development.
+The scenes Volume contains terminal_base.usda and immutable publications under
+runs/<run_id>/<push_id>/. Open the terminal_state_<run_id>.usda layer in an
+OpenUSD viewer with its relative base path intact. Omniverse Kit streaming is
+deferred; no RTX GPU is used by this pipeline.

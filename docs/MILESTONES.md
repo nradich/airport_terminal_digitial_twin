@@ -22,3 +22,22 @@ Run commands appear in README.md and were executed.
 Risks: the stock local catalog does not implement SQL functions, so governed
 view SQL is active. Source notebook editing, Delta previews, and Workspace
 Experiments comparison are deferred until after M3. Remote execution is UNTESTED.
+
+## M2 — passed
+
+Executed 00 → 01 → 02 → 03 → 04 for baseline run
+9b5f798c2b114d9ea1622bb0e5b8d8f4. Ten asset prims compose correctly in the Volume.
+Base SHA256: 2e1c47c7217e4311c025e0577db893e546c085e8f59184ea5017a98bfe9b021c.
+Repeated push reused ID
+4f09c469c8fde457fe78c79617c29477e3cd3fd8b80a49f44332eb91131aa67f.
+The manifest contains all 42 metric states and source Delta versions. The base
+remained unchanged. Simulator/write/metrics elapsed: 5.818s.
+
+Unit tests: 18 passed, 1 integration test deselected, in 15.23s. Includes USD
+round-trip, correct asset paths/colours, root-layer units/axis, immutable writes,
+and recovery from an injected audit failure after file publication. Ruff clean.
+Executed commands are in README.md.
+
+Risks: Volume publication currently assumes one scene writer; remote FUSE behavior
+and opening in an actual Omniverse Kit application are UNTESTED. Kit streaming is
+a deliberate unsupported stub. MLflow scene artifacts and PNGs arrive in M3.
