@@ -41,3 +41,26 @@ Executed commands are in README.md.
 Risks: Volume publication currently assumes one scene writer; remote FUSE behavior
 and opening in an actual Omniverse Kit application are UNTESTED. Kit streaming is
 a deliberate unsupported stub. MLflow scene artifacts and PNGs arrive in M3.
+
+## M3 — passed
+
+Both scenarios executed 00 → 04. Baseline:
+fec2d8ef61b94c4590b2ac3f624aae22. Delay:
+8c9da58a294f4cbab4255799f79b34ec. Both use seed 42 and the same start timestamp.
+All four metric histories contain steps 0..59. Each run's scene bundle, PNG,
+thresholds and manifest were downloaded from the live MLflow server; checksums,
+relative USD composition and image decoding passed. The PNGs were visually
+inspected: A4 is green with 6 people in the final baseline frame and red with
+213 people in the delayed frame. Peak A4 population: 126 versus 213.
+
+Native MLflow Model training → Compare → peak_pax_A4 was verified in the browser.
+Both scenario curves render by Step and the comparison shows identical seeds,
+timestamps and thresholds. Simulator/write/metrics times: 5.183s and 4.761s.
+pytest including live SQL and MLflow: 20 passed in 27.45s. Ruff clean.
+
+Artifacts preserve `scene/terminal_base.usda` and
+`scene/runs/<run>/<push>/terminal_state_<run>.usda` so downloaded bundles compose.
+Run commands are in README.md. Native MLflow is http://localhost:5000/mlflow/.
+Earlier M1/M2 runs predate complete artifact logging; use these M3 runs for filming.
+
+Risks: remote Databricks remains UNTESTED; Workspace UI enhancements follow M3.

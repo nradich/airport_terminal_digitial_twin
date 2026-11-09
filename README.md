@@ -8,6 +8,8 @@ gates and two shared zones; deterministic baseline and `delay_A4` scenarios.
 Live platform discovery and M0 contracts passed. M1 setup, seeded simulation,
 and data validation ran against real UC/Delta/MLflow. M2 also published and
 validated a composed ten-asset USD scene without changing the base.
+M3 verified both scenarios, complete MLflow metric histories and downloadable
+USD/PNG/provenance artifacts, including native UI comparison.
 No remote deployment has been attempted.
 
 - [Verified local platform](docs/LOCAL_PLATFORM.md)
@@ -48,6 +50,7 @@ Executed locally from the same platform checkout:
 
 ```powershell
 docker compose -f compose.yaml -f compose.spark.yaml exec -T spark-notebooks uv run --no-sync airport-twin run --scenario baseline --seed 42
+docker compose -f compose.yaml -f compose.spark.yaml exec -T spark-notebooks uv run --no-sync airport-twin run --scenario delay_A4 --seed 42
 docker compose -f compose.yaml -f compose.spark.yaml exec -T spark-notebooks uv run --no-sync airport-twin push --run-id 9b5f798c2b114d9ea1622bb0e5b8d8f4
 ```
 
@@ -57,3 +60,10 @@ The scenes Volume contains terminal_base.usda and immutable publications under
 runs/<run_id>/<push_id>/. Open the terminal_state_<run_id>.usda layer in an
 OpenUSD viewer with its relative base path intact. Omniverse Kit streaming is
 deferred; no RTX GPU is used by this pipeline.
+
+Open [native MLflow](http://localhost:5000/mlflow/), choose **Model training**,
+then `/Shared/airport-twin`. Compare baseline `fec2d8ef` with delay `8c9da58a` and
+select peak_pax_A4 to see minute steps 0..59. The delayed run peaks at 213 people;
+baseline peaks at 126. In each run, expand scene/runs/<run>/<push> for the PNG,
+USD, thresholds and manifest. Full validation downloads these artifacts and
+reopens the composed USD, rather than only listing metadata.

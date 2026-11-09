@@ -114,6 +114,9 @@ def push_scene(platform: Platform, run_id: str) -> dict:
                 transport.publish(
                     str(manifest_path.relative_to(transport.root)), canonical(manifest)
                 )
+            from airport_twin.tracking import log_scene
+
+            log_scene(platform.config, manifest)
             merge_rows(
                 platform,
                 "scene_pushes",
@@ -162,3 +165,6 @@ def validate_publications(platform: Platform, run_id: str) -> None:
         if push.n_prims != 10 or manifest["run_id"] != run_id:
             raise AssertionError("Publication lineage mismatch")
         verify_composition(path, manifest["states"])
+    from airport_twin.tracking import validate_scene_artifacts
+
+    validate_scene_artifacts(platform.config, run_id, [p.push_id for p in pushes])

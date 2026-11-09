@@ -97,3 +97,63 @@ def run_url(config: Config, run_id: str) -> str:
     run = assert_run(config, run_id)
     base = os.getenv("TWIN_MLFLOW_PUBLIC_URI", config.tracking_uri).rstrip("/")
     return f"{base}/#/experiments/{run.info.experiment_id}/runs/{run_id}"
+
+
+def log_scene(config: Config, manifest: dict) -> None:
+    """Log a composable scene bundle, heatmap, and the exact push provenance."""
+    import tempfile
+
+    from airport_twin.scene import canonical
+    from airport_twin.scene.heatmap import render_heatmap
+
+    c = client(config)
+    run_id, push_id = manifest["run_id"], manifest["push_id"]
+    run = assert_run(config, run_id)
+    prefix = f"scene/runs/{run_id}/{push_id}"
+    state = Path(manifest["usd_path"])
+    base = state.parents[3] / "terminal_base.usda"
+    c.log_artifact(run_id, str(base), "scene")
+    c.log_artifact(run_id, str(state), prefix)
+    c.log_dict(run_id, json.loads(canonical(manifest)), prefix + "/manifest.json")
+    c.log_dict(run_id, {"rows": manifest["thresholds"]}, prefix + "/thresholds.json")
+    with tempfile.TemporaryDirectory() as folder:
+        png = Path(folder) / "heatmap.png"
+        render_heatmap(manifest, run.data.params["scenario"], png)
+        c.log_artifact(run_id, str(png), prefix)
+    c.log_metric(run_id, "scene_n_prims", manifest["n_prims"])
+
+
+def validate_scene_artifacts(config: Config, run_id: str, push_ids: list[str]) -> None:
+    import tempfile
+
+    from PIL import Image
+
+    from airport_twin.scene import digest
+    from airport_twin.scene.usd import verify_composition
+
+    c = client(config)
+    for metric in ("peak_pax_A4", "gates_in_crit", "avg_co2", "security_queue_p95"):
+        history = c.get_metric_history(run_id, metric)
+        minutes = int(assert_run(config, run_id).data.params["minutes"])
+        if {m.step for m in history} != set(range(minutes)):
+            raise AssertionError(f"Missing metric history for {metric}")
+    with tempfile.TemporaryDirectory() as folder:
+        root = Path(c.download_artifacts(run_id, "scene", folder))
+        for push_id in push_ids:
+            directory = root / "runs" / run_id / push_id
+            manifest = json.loads((directory / "manifest.json").read_text())
+            state = directory / f"terminal_state_{run_id}.usda"
+            if digest(state.read_bytes()) != manifest["state_sha256"]:
+                raise AssertionError("Retrieved USD differs from the publication")
+            if digest((root / "terminal_base.usda").read_bytes()) != manifest["base_sha256"]:
+                raise AssertionError("Retrieved base differs from the publication")
+            if manifest["run_id"] != run_id or manifest["push_id"] != push_id:
+                raise AssertionError("Retrieved manifest has wrong lineage")
+            if (
+                json.loads((directory / "thresholds.json").read_text())["rows"]
+                != manifest["thresholds"]
+            ):
+                raise AssertionError("Retrieved thresholds differ")
+            verify_composition(state, manifest["states"])
+            with Image.open(directory / "heatmap.png") as image:
+                image.verify()

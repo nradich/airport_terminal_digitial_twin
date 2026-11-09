@@ -65,6 +65,7 @@ def test_retry_after_audit_failure(tmp_path, monkeypatch):
     import mlflow
 
     import airport_twin.scene as scene
+    import airport_twin.tracking as tracking
     from airport_twin.config import Config
 
     transport = UsdVolumeTransport(tmp_path)
@@ -82,6 +83,7 @@ def test_retry_after_audit_failure(tmp_path, monkeypatch):
     monkeypatch.setattr(mlflow, "active_run", lambda: None)
     monkeypatch.setattr(mlflow, "start_run", lambda **_: nullcontext())
     monkeypatch.setattr(scene, "client", lambda _: SimpleNamespace(set_tag=lambda *_: None))
+    monkeypatch.setattr(tracking, "log_scene", lambda *_: None)
     audit = {}
     attempts = []
 
