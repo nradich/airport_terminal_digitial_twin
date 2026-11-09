@@ -5,7 +5,7 @@
 Discovery on 2026-11-09: the airport repository was cloned successfully and is
 empty upstream. Docker Desktop was started and existing stopped containers were
 restarted without recreation. UC, MLflow, Jupyter, UI, storage and database are
-healthy. Live discovery is complete; M0 capability tests remain pending.
+healthy. Live discovery and M0 capability tests passed.
 
 ## Live verified findings
 
@@ -64,3 +64,13 @@ notebook status and kernels; available Spark globals; existing UC objects;
 Volume metadata and backing paths; MLflow experiments and retrievable artifacts.
 M0 contract tests subsequently verify writes using uniquely named disposable
 objects, not existing user data.
+
+## M0 result
+
+The separate service on port 8889 uses Python 3.11.14, Spark 4.2.0, Delta 4.4.1,
+and UC connector 0.7.0. Live contracts returned `1 passed, 1 warning in 13.41s`:
+persistent external Delta and a UC view read from a fresh SQL session; Volume
+bytes round-tripped; MLflow artifact upload and retrieval matched. All temporary
+catalog objects were removed. The pandas 3.x warning is confined to the platform
+environment; airport dependencies pin pandas 2.x. Existing RAPIDS containers were
+not recreated.

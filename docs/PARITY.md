@@ -17,3 +17,9 @@ Local Delta storage uses UC-registered EXTERNAL Delta locations on the existing
 shared /data volume, with all reads/writes by three-level name. Databricks setup
 uses managed Delta without LOCATION. No table data is stored in a UC Volume.
 The scenes Volume has its own non-overlapping registered directory.
+
+M1 verified fallback: the local catalog rejects CREATE FUNCTION with
+MISSING_CATALOG_ABILITY.CREATE_FUNCTION. latest_state owns the SQL expression.
+On Databricks the same setup attempts the native function and uses it after a
+qualified boundary check. UC OSS view replacement also requires drop/create;
+setup skips identical definitions, but a changed definition has a brief gap.

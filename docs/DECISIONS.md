@@ -20,3 +20,9 @@
   those services. Local Delta tables will be UC-registered external Delta on
   shared persistent storage; real Databricks uses managed Delta tables. This
   difference is setup configuration in the adapter, never a compute fork.
+- M1 native SQL function attempt returned
+  `[MISSING_CATALOG_ABILITY.CREATE_FUNCTION] Catalog dbx_twin does not support
+  CREATE FUNCTION`. The capability is absent in the stock UC Spark catalog.
+  The attempt completed well inside the 30-minute cap; no custom JVM evaluator
+  was added. latest_state contains the canonical governed severity/colour SQL;
+  gate_health aggregates its severity. No function placeholder was created.

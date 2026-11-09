@@ -14,6 +14,10 @@ and debugging on a tested integration. If unavailable, govern the canonical
 colour/status expression in latest_state and record the actual result here.
 Do not create a nonfunctional function placeholder.
 
+Verified M1 result: Spark returned MISSING_CATALOG_ABILITY.CREATE_FUNCTION for
+the stock UC catalog. Support is still requested, but not a blocker. The active
+colour/status expression is governed by the persistent latest_state view.
+
 ## After M3, before filming
 
 Databricks source-notebook editing; bounded Spark-backed Delta table previews;

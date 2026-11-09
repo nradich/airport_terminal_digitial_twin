@@ -1,0 +1,43 @@
+[build-system]
+requires = ["hatchling==1.33.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "airport-twin"
+version = "0.1.0"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+  "mlflow==3.17.0",
+  "usd-core==26.11",
+  "matplotlib==3.9.4",
+  "numpy==1.26.4",
+  "pandas==2.2.3",
+  "requests==2.34.2",
+]
+
+[project.scripts]
+airport-twin = "airport_twin.cli:main"
+
+[dependency-groups]
+dev = ["pytest==8.4.2", "ruff==0.17.4", "nbformat==5.11.1", "jupyter-client==8.10.0", "ipykernel==7.4.0"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/airport_twin"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/sql" = "airport_twin/sql"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["integration: requires the real local UC Spark/MLflow platform"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+"notebooks/*.py" = ["F821"]
+
