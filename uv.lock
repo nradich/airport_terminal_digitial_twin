@@ -70,6 +70,7 @@ dependencies = [
     { name = "mlflow" },
     { name = "numpy" },
     { name = "pandas" },
+    { name = "pyyaml" },
     { name = "requests" },
     { name = "usd-core" },
 ]
@@ -89,6 +90,7 @@ requires-dist = [
     { name = "mlflow", specifier = "==3.17.0" },
     { name = "numpy", specifier = "==1.26.4" },
     { name = "pandas", specifier = "==2.2.3" },
+    { name = "pyyaml", specifier = "==6.0.3" },
     { name = "requests", specifier = "==2.34.2" },
     { name = "usd-core", specifier = "==26.11" },
 ]

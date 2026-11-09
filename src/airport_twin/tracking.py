@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 from datetime import UTC
 from pathlib import Path
@@ -42,6 +43,9 @@ def client(config: Config) -> MlflowClient:
 
 
 def start_run(config: Config, sim: SimulationConfig, thresholds: list[tuple]) -> str:
+    sha = git_sha()
+    if not re.fullmatch(r"[a-fA-F0-9]{40}", sha):
+        raise ValueError("Set TWIN_GIT_SHA to the exact commit when Git metadata is unavailable")
     c = client(config)
     experiment = c.get_experiment_by_name(config.experiment)
     experiment_id = (
@@ -51,7 +55,7 @@ def start_run(config: Config, sim: SimulationConfig, thresholds: list[tuple]) ->
         experiment_id,
         tags={
             "scenario": sim.scenario,
-            "git_sha": git_sha(),
+            "git_sha": sha,
             "platform": config.platform,
             "mlflow.runName": f"{sim.scenario}-seed{sim.seed}",
             "twin.namespace": config.namespace,

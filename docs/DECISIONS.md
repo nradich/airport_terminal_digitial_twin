@@ -26,3 +26,12 @@
   The attempt completed well inside the 30-minute cap; no custom JVM evaluator
   was added. latest_state contains the canonical governed severity/colour SQL;
   gate_health aggregates its severity. No function placeholder was created.
+- The local runner reads bundle local defaults; existing environment settings
+  win. Native notebook widgets carry the same configuration remotely. Downstream
+  tasks receive the originating run ID explicitly, without searching recent runs.
+- Managed notebook environments may omit Git metadata. Require an exact
+  TWIN_GIT_SHA in that case, before starting an MLflow run. Bundle git_sha carries
+  that value; the empty default deliberately cannot produce an unidentified run.
+- M4 separates offline packaging/schema checks from authenticated workspace
+  validation. The latter failed for missing credentials; M4 remains incomplete.
+  No deployment, upload or remote push is authorized or performed.

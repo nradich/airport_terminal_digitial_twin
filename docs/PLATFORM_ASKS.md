@@ -6,6 +6,10 @@
 - Persistent Delta tables and views, Volume read/write, MLflow artifact round-trip.
 - Gate airport M1 on live contract tests for these capabilities.
 
+Implemented and verified in platform commit 1fb4063. The later regression suite
+passed all five tests after pinning pandas 2.2.3; the original pandas warning is
+resolved. The existing Python 3.12 RAPIDS service remains unchanged.
+
 ## Non-blocking SQL function support
 
 Qualified UC-stored SQL scalar functions are not established by the current
@@ -22,3 +26,8 @@ colour/status expression is governed by the persistent latest_state view.
 
 Databricks source-notebook editing; bounded Spark-backed Delta table previews;
 Workspace Experiments metric-history comparison and PNG artifact viewing.
+
+Implemented in platform commit c179221 and verified in the running browser.
+Source-notebook editing/execution/saving, bounded Delta and existing payment
+previews, two-run metric comparison, PNG viewing and governed view SQL display
+all passed. Limits and remaining preview risks are recorded in MILESTONES.md.

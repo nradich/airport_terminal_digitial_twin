@@ -1,0 +1,54 @@
+bundle:
+  name: airport-twin
+  databricks_cli_version: ">=1.25.0"
+
+include:
+  - resources/*.yml
+
+variables:
+  catalog:
+    default: dbx_twin
+  schema:
+    default: airport
+  experiment:
+    default: /Shared/airport-twin
+  warehouse_id:
+    description: Optional SQL editor or future App warehouse; notebooks use serverless compute.
+    default: ""
+  platform:
+    default: databricks
+  tracking_uri:
+    default: databricks
+  registry_uri:
+    default: databricks-uc
+  git_sha:
+    description: Exact deployed Git commit; pass explicitly when Git metadata is unavailable.
+    default: ""
+  package_dependency:
+    description: Wheel or requirements-file reference; override with a UC Volume path for offline installs.
+    default: ${workspace.file_path}/dist/airport_twin-0.1.0-py3-none-any.whl
+
+artifacts:
+  airport_wheel:
+    type: whl
+    path: .
+    build: uv build --wheel
+
+sync:
+  include:
+    - dist/*.whl
+  exclude:
+    - .env
+    - .venv/**
+    - .local/**
+
+targets:
+  local:
+    default: true
+    variables:
+      platform: local
+      tracking_uri: http://mlflow:5000/mlflow
+      registry_uri: uc:http://server:8080
+    # Configuration for the local notebook runner only. No local deployment API.
+  dev:
+    mode: development

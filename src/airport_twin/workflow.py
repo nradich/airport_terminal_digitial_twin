@@ -57,6 +57,7 @@ def run_simulation(platform: Platform, config: SimulationConfig) -> str:
 
 def validate(platform: Platform, run_id: str, phase: str = "all") -> dict:
     run = assert_run(platform.config, run_id)
+    thresholds(platform)
     # Read using DataFrame filters, never interpolate externally supplied run IDs into SQL.
     readings = [
         tuple(r)

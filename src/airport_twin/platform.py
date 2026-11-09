@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+import os
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -101,8 +103,34 @@ def notebook_context(namespace: dict[str, Any]) -> tuple[Config, Platform, dict[
     logging.basicConfig(level=logging.INFO)
     logging.getLogger("airport_twin").setLevel(logging.INFO)
     config = Config.from_env()
+    if config.platform == "databricks":
+        utils = namespace["dbutils"]
+        values = {}
+        for name, default in {
+            "TWIN_CATALOG": config.catalog,
+            "TWIN_SCHEMA": config.schema,
+            "TWIN_EXPERIMENT": config.experiment,
+            "TWIN_PLATFORM": config.platform,
+            "MLFLOW_TRACKING_URI": config.tracking_uri,
+            "MLFLOW_REGISTRY_URI": config.registry_uri,
+            "TWIN_GIT_SHA": os.getenv("TWIN_GIT_SHA", ""),
+        }.items():
+            utils.widgets.text(name, default)
+            values[name] = utils.widgets.get(name)
+        config = replace(
+            config,
+            catalog=values["TWIN_CATALOG"],
+            schema=values["TWIN_SCHEMA"],
+            experiment=values["TWIN_EXPERIMENT"],
+            platform=values["TWIN_PLATFORM"],
+            tracking_uri=values["MLFLOW_TRACKING_URI"],
+            registry_uri=values["MLFLOW_REGISTRY_URI"],
+        )
+        if values["TWIN_GIT_SHA"]:
+            os.environ["TWIN_GIT_SHA"] = values["TWIN_GIT_SHA"]
     if "spark" not in namespace:
         raise RuntimeError("The platform must supply spark; do not create an application engine")
+    namespace["spark"].sql("SET TIME ZONE 'UTC'")
     params = namespace.get("twin_params")
     if params is None and config.platform == "local":
         params = {"scenario": "baseline", "seed": 42, "minutes": 60, "run_id": "", "phase": "all"}
@@ -121,9 +149,4 @@ def notebook_context(namespace: dict[str, Any]) -> tuple[Config, Platform, dict[
             key: utils.widgets.get(key)
             for key in ("scenario", "seed", "minutes", "run_id", "phase")
         }
-        if not params["run_id"]:
-            try:
-                params["run_id"] = utils.jobs.taskValues.get(taskKey="simulate", key="run_id")
-            except (ValueError, TypeError):
-                pass  # Interactive execution requires the explicit run_id widget.
     return config, Platform(config, namespace["spark"]), params

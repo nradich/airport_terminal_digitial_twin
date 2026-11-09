@@ -12,6 +12,10 @@ M3 verified both scenarios, complete MLflow metric histories and downloadable
 USD/PNG/provenance artifacts, including native UI comparison.
 No remote deployment has been attempted.
 
+M4 packaging and offline schema checks pass. Authenticated bundle validation and
+real Databricks execution are **UNTESTED** because no credentials are configured;
+M4 remains incomplete. See [portability evidence](docs/PORTABILITY.md).
+
 - [Verified local platform](docs/LOCAL_PLATFORM.md)
 - [Parity and adapters](docs/PARITY.md)
 - [Platform requests](docs/PLATFORM_ASKS.md)
@@ -54,8 +58,8 @@ docker compose -f compose.yaml -f compose.spark.yaml exec -T spark-notebooks uv 
 docker compose -f compose.yaml -f compose.spark.yaml exec -T spark-notebooks uv run --no-sync airport-twin push --run-id 9b5f798c2b114d9ea1622bb0e5b8d8f4
 ```
 
-The first command executes 00 → 01 → 02 → 03 → 04. Copy its explicit run ID for
-later pushes; the second command shows the verified run used during development.
+The first two commands execute 00 → 01 → 02 → 03 → 04 for each scenario. Copy
+the explicit run ID for later pushes; the third command retries a verified run.
 The scenes Volume contains terminal_base.usda and immutable publications under
 runs/<run_id>/<push_id>/. Open the terminal_state_<run_id>.usda layer in an
 OpenUSD viewer with its relative base path intact. Omniverse Kit streaming is
@@ -67,3 +71,18 @@ select peak_pax_A4 to see minute steps 0..59. The delayed run peaks at 213 peopl
 baseline peaks at 126. In each run, expand scene/runs/<run>/<push> for the PNG,
 USD, thresholds and manifest. Full validation downloads these artifacts and
 reopens the composed USD, rather than only listing metadata.
+
+## Portable artifacts
+
+Executed inside the same local service:
+
+```powershell
+docker compose -f compose.yaml -f compose.spark.yaml exec -T spark-notebooks uv build --wheel
+docker compose -f compose.yaml -f compose.spark.yaml exec -T spark-notebooks python scripts/prepare_offline.py
+docker compose -f compose.yaml -f compose.spark.yaml exec -T spark-notebooks uv run --no-sync python scripts/render_sql.py --output .local/setup_databricks.sql
+```
+
+The wheel is in dist; the 90-file offline wheelhouse and checksums are in
+.local/wheelhouse. The generated SQL targets Databricks managed tables and can
+be pasted into its SQL editor after reviewing names and permissions. Its remote
+execution is UNTESTED. No upload, push or deployment was performed.

@@ -84,3 +84,36 @@ Risks: large Parquet input sets over the 16 MiB whole-file staging cap now fail
 explicitly instead of range-sampling. Delta input sizes are labeled estimates.
 The original RAPIDS service is unchanged; the overlay routes Workspace Notebooks
 to the airport service. Remote execution remains UNTESTED.
+
+## M4 — prepared, incomplete
+
+Added local/dev bundle targets, a serial serverless environment-2 job, configurable
+namespace/tracking/package settings, packaged SQL, explicit widget/run-ID handoff,
+standalone SQL rendering, Make aliases and offline dependency preparation.
+Local configuration is consumed by the local runner, not a deployment emulator.
+
+Executed with Docker Compose in the platform checkout:
+
+```powershell
+docker compose -f compose.yaml -f compose.spark.yaml exec -T spark-notebooks uv run --no-sync ruff check src tests notebooks scripts
+docker compose -f compose.yaml -f compose.spark.yaml exec -T -e TWIN_RUN_INTEGRATION=1 spark-notebooks uv run --no-sync pytest -q
+docker compose -f compose.yaml -f compose.spark.yaml exec -T spark-notebooks uv build --wheel
+docker compose -f compose.yaml -f compose.spark.yaml exec -T spark-notebooks python scripts/prepare_offline.py
+```
+
+Final output: Ruff all checks passed; 23 pytest tests passed in 25.81s.
+Formatting: 28 files already formatted. Both full notebook pipelines passed again:
+baseline f3e57101b9144577a2cc7e4b5c9ce388 and delayed
+b642c81185ff463485248242448fe4f9. Each validated 2,520 readings, eight flights,
+42 latest-state rows, eight gates, composed USD and retrieved tracking artifacts.
+
+The wheel and all 89 runtime dependency wheels installed with --no-index into
+an isolated Python 3.11 environment. Package/SQL imports, deterministic simulation,
+USD code and dependency checks passed. The official CLI schema accepts the bundle
+configuration. Generated Databricks SQL was rendered, not executed remotely.
+
+Authenticated databricks bundle validate --strict -t dev was attempted with CLI
+1.25.0 and failed because default credentials are unavailable. Real workspace
+validation and execution are **UNTESTED**; M4 is not complete. No push, upload or
+deployment occurred. PORTABILITY.md records commands, restrictions and remaining
+native-function, Volume filesystem and serverless dependency compatibility risks.

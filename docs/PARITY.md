@@ -23,3 +23,10 @@ MISSING_CATALOG_ABILITY.CREATE_FUNCTION. latest_state owns the SQL expression.
 On Databricks the same setup attempts the native function and uses it after a
 qualified boundary check. UC OSS view replacement also requires drop/create;
 setup skips identical definitions, but a changed definition has a brief gap.
+
+The dev bundle uses serverless environment version 2 and the same packaged
+library/SQL as local execution. Configuration widgets and explicit task-value
+parameters are implemented but cloud execution is UNTESTED. The local target
+supplies runner defaults only, with no emulated deployment API. Offline CLI-schema
+checks pass; authenticated validation failed for missing credentials. See
+PORTABILITY.md for wheelhouse evidence and the outstanding real-workspace proof.

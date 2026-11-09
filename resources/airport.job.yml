@@ -1,0 +1,66 @@
+targets:
+  dev:
+    resources:
+      jobs:
+        airport_twin:
+          name: airport-twin-${bundle.target}
+          max_concurrent_runs: 1
+          parameters:
+            - name: scenario
+              default: baseline
+            - name: seed
+              default: "42"
+            - name: minutes
+              default: "60"
+          environments:
+            - environment_key: airport
+              spec:
+                environment_version: "2"
+                dependencies:
+                  - ${var.package_dependency}
+          tasks:
+            - task_key: setup
+              environment_key: airport
+              notebook_task:
+                notebook_path: ../notebooks/00_setup.py
+                base_parameters: &configuration
+                  TWIN_CATALOG: ${var.catalog}
+                  TWIN_SCHEMA: ${var.schema}
+                  TWIN_EXPERIMENT: ${var.experiment}
+                  TWIN_PLATFORM: ${var.platform}
+                  MLFLOW_TRACKING_URI: ${var.tracking_uri}
+                  MLFLOW_REGISTRY_URI: ${var.registry_uri}
+                  TWIN_GIT_SHA: ${var.git_sha}
+                  scenario: "{{job.parameters.scenario}}"
+                  seed: "{{job.parameters.seed}}"
+                  minutes: "{{job.parameters.minutes}}"
+            - task_key: build_scene
+              depends_on: [{task_key: setup}]
+              environment_key: airport
+              notebook_task:
+                notebook_path: ../notebooks/01_build_scene.py
+                base_parameters: *configuration
+            - task_key: simulate
+              depends_on: [{task_key: build_scene}]
+              environment_key: airport
+              max_retries: 0
+              disable_auto_optimization: true
+              notebook_task:
+                notebook_path: ../notebooks/02_simulate.py
+                base_parameters: *configuration
+            - task_key: push_scene
+              depends_on: [{task_key: simulate}]
+              environment_key: airport
+              notebook_task:
+                notebook_path: ../notebooks/03_push_scene.py
+                base_parameters:
+                  <<: *configuration
+                  run_id: "{{tasks.simulate.values.run_id}}"
+            - task_key: validate
+              depends_on: [{task_key: push_scene}]
+              environment_key: airport
+              notebook_task:
+                notebook_path: ../notebooks/04_validate.py
+                base_parameters:
+                  <<: *configuration
+                  run_id: "{{tasks.simulate.values.run_id}}"

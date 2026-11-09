@@ -16,6 +16,9 @@ def main() -> None:
     parser.add_argument("--minutes", type=int, default=60)
     parser.add_argument("--run-id", default="")
     args = parser.parse_args()
+    from airport_twin.bundle import local_environment
+
+    local_environment(Path.cwd() / "databricks.yml")
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     from airport_twin.runner import execute
 

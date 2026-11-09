@@ -105,11 +105,7 @@ def setup(platform: Platform) -> dict[str, Any]:
     # A bounded native attempt. Do not implement a custom JVM function evaluator here.
     try:
         platform.spark.sql(
-            f"CREATE OR REPLACE FUNCTION {platform.config.namespace}.status_colour("
-            f"value DOUBLE, warn DOUBLE, crit DOUBLE) RETURNS STRING RETURN "
-            "CASE WHEN value IS NULL OR warn IS NULL OR crit IS NULL "
-            "OR warn >= crit THEN NULL WHEN value >= crit THEN '#EF4444' "
-            "WHEN value >= warn THEN '#F59E0B' ELSE '#22C55E' END"
+            render(sql_text("status_colour.sql"), {"namespace": platform.config.namespace})
         )
     except Exception as exc:
         message = str(exc)
