@@ -45,6 +45,9 @@ def sql_text(name: str) -> str:
 
 
 def render(text: str, values: dict[str, str]) -> str:
+    if "namespace" in values:
+        values = {"assets_source": values["namespace"] + ".assets",
+                  "thresholds_source": values["namespace"] + ".thresholds", **values}
     for key, value in values.items():
         text = text.replace("{{" + key + "}}", value)
     if "{{" in text:

@@ -21,6 +21,7 @@ def main() -> None:
             "prepare-viewer",
             "collect-captures",
             "validate-viewer",
+            "publish-replay",
         ],
     )
     parser.add_argument("--scenario", default="baseline", choices=["baseline", "delay_A4"])
@@ -47,6 +48,7 @@ def main() -> None:
         "prepare-viewer": ["00_setup", "06_prepare_viewer"],
         "collect-captures": ["07_collect_captures"],
         "validate-viewer": ["08_validate_viewer"],
+        "publish-replay": ["09_publish_replay"],
     }
     params = {
         "scenario": args.scenario,

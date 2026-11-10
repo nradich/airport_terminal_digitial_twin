@@ -45,3 +45,15 @@ not business-data storage. For cloud use, transfer that inbox to a UC Volume and
 set capture_dir; that transfer, remote notebook execution and real-workspace
 artifact routing are UNTESTED. CPU heatmap publication remains available without
 an RTX renderer. Film-ready local acceptance is in FILM_READY.md.
+
+M7 Browser App: local FastAPI uses an internal bearer-authenticated named-read
+Spark gateway, fixed to dbx_twin.airport, with 5000 rows/2 MiB/30s/two-query limits.
+It never sends SQL from the browser or starts Spark in the App. Dev uses the same
+trusted query builders through the Databricks SQL connector and App OAuth, and
+Files API for Volume downloads (cloud access UNVERIFIED). Local files resolve
+through UC Volume metadata and a read-only /data mount. MLflow remains the only
+run/metric/artifact source. Audited replay pins Delta versions and thresholds;
+current snapshots remain an explicitly separate API. No local bundle deployment
+API is emulated. The separate platform adapter encodes restricted scalar bindings
+because OSS UC view expansion loses Spark named parameters; dev uses native binds.
+No VACUUM, log truncation or manual source-file deletion is allowed during audit.

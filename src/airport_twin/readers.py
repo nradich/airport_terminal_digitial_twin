@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 from typing import Protocol
@@ -38,7 +39,8 @@ class LocalSqlReader:
         )
         body = response.json()
         if not response.ok:
-            raise ReadError(body.get("error", "QUERY_FAILED"), status=response.status_code)
+            code = body.get("error", "QUERY_FAILED").split(":", 1)[0]
+            raise ReadError(code, json.dumps(body), status=response.status_code)
         return body["rows"]
 
 

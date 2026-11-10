@@ -15,8 +15,8 @@ WITH ranked AS (
         OR t.warn IS NULL OR t.crit IS NULL OR t.warn >= t.crit THEN NULL
       WHEN r.value_num >= t.crit THEN 2 WHEN r.value_num >= t.warn THEN 1 ELSE 0
     END AS severity
-  FROM ranked r JOIN {{namespace}}.assets a ON r.asset_id = a.asset_id
-  LEFT JOIN {{namespace}}.thresholds t ON a.asset_type = t.asset_type AND r.metric = t.metric
+  FROM ranked r JOIN {{assets_source}} a ON r.asset_id = a.asset_id
+  LEFT JOIN {{thresholds_source}} t ON a.asset_type = t.asset_type AND r.metric = t.metric
   WHERE rn = 1
 )
 SELECT *, CASE severity WHEN 2 THEN 'crit' WHEN 1 THEN 'warn' WHEN 0 THEN 'ok' END AS status,

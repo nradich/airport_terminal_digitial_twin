@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import time
 
 from airport_twin.config import Config
 from airport_twin.layout import CAMERAS
@@ -15,10 +16,17 @@ from airport_twin.tracking import assert_run, run_url
 class TwinData:
     def __init__(self, config: Config, sql: SqlReader, volume: VolumeReader) -> None:
         self.config, self.sql, self.volume = config, sql, volume
+        self._push_cache: tuple[float, list[dict]] = (0, [])
+        self._publications: dict[str, dict] = {}
+
+    def pushes(self) -> list[dict]:
+        if time.monotonic() - self._push_cache[0] > 5:
+            self._push_cache = (time.monotonic(), self.sql.read("pushes"))
+        return self._push_cache[1]
 
     def runs(self) -> list[dict]:
         result = {}
-        for push in self.sql.read("pushes"):
+        for push in self.pushes():
             if push["run_id"] not in result:
                 run = assert_run(self.config, push["run_id"])
                 result[push["run_id"]] = {
@@ -32,10 +40,13 @@ class TwinData:
         return list(result.values())
 
     def publication(self, push_id: str) -> dict:
-        rows = [row for row in self.sql.read("pushes") if row["push_id"] == push_id]
+        rows = [row for row in self.pushes() if row["push_id"] == push_id]
         if len(rows) != 1:
             raise ReadError("PUBLICATION_NOT_FOUND", status=404)
         audit = rows[0]
+        cached = self._publications.get(push_id)
+        if cached and cached["audit"] == audit:
+            return cached
         relative = self.volume.relative(audit["usd_path"])
         manifest_path = relative.rsplit("/", 1)[0] + "/manifest.json"
         manifest = json.loads(self.volume.read(manifest_path))
@@ -44,7 +55,7 @@ class TwinData:
             for key in ("push_id", "run_id", "step", "scenario", "glb_path", "glb_sha256")
         ):
             raise ReadError("PUBLICATION_MISMATCH", status=409)
-        return {
+        result = {
             "audit": audit,
             "manifest": manifest,
             "labels": asset_labels(manifest["assets"]),
@@ -54,6 +65,10 @@ class TwinData:
             ),
             "image_type": "Renderer capture" if audit["capture_path"] else "Heatmap preview",
         }
+        if len(self._publications) >= 1024:
+            self._publications.pop(next(iter(self._publications)), None)
+        self._publications[push_id] = result
+        return result
 
     def model(self, push_id: str) -> bytes:
         publication = self.publication(push_id)
