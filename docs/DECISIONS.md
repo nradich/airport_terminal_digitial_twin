@@ -40,3 +40,9 @@
   preview lighting and native snapshot buttons. This avoids unreliable automated
   text entry in Composer's custom file picker and preserves the user's unsaved
   original stage in a separate window. Published USD files stay unchanged.
+- Film preparation adds assets.asset_name without changing display_name, prim
+  paths or immutable base geometry. Existing non-null names are preserved.
+  The notebook library publishes versioned viewer JSON to the scenes Volume and
+  originating MLflow runs. Desktop JSON files are artifact copies, not a side
+  database. Kit uses CPU-only presentation/reader modules and native rendering;
+  it never creates Spark or duplicates governed severity rules.

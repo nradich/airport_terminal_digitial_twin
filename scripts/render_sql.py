@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 
 from airport_twin.config import Config
-from airport_twin.data import ASSETS, THRESHOLDS, render, sql_text
+from airport_twin.data import ASSET_NAMES, ASSETS, THRESHOLDS, render, sql_text
 
 
 def seed_sql(
@@ -45,8 +45,8 @@ def main() -> None:
         seed_sql(
             config,
             "assets",
-            ASSETS,
-            ["asset_id", "asset_type", "zone", "prim_path", "display_name"],
+            [(*row, ASSET_NAMES[row[0]]) for row in ASSETS],
+            ["asset_id", "asset_type", "zone", "prim_path", "display_name", "asset_name"],
             ["asset_id"],
         ),
         seed_sql(

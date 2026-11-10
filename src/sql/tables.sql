@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS {{namespace}}.assets (
-  asset_id STRING, asset_type STRING, zone STRING, prim_path STRING, display_name STRING
+  asset_id STRING, asset_type STRING, zone STRING, prim_path STRING, display_name STRING,
+  asset_name STRING
 ) USING DELTA{{assets_location}};
 CREATE TABLE IF NOT EXISTS {{namespace}}.flights (
   flight_id STRING, gate_id STRING, sched_dep TIMESTAMP, actual_dep TIMESTAMP,

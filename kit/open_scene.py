@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import sys
 from pathlib import Path
 
 import carb
@@ -11,17 +12,27 @@ import omni.kit.app
 import omni.kit.async_engine
 import omni.ui as ui
 import omni.usd
-from omni.kit.viewport.utility import frame_viewport_prims, get_active_viewport
+from omni.kit.viewport.utility import (
+    frame_viewport_prims,
+    get_active_viewport,
+    get_active_viewport_window,
+)
 from pxr import Usd, UsdLux
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path[:0] = [str(ROOT / "src"), str(ROOT / "kit")]
+from airport_labels import AssetLabels  # noqa: E402
+
+from airport_twin.viewer import load_bundle  # noqa: E402
+
 busy = False
+labels = None
 window = ui.Window("Airport snapshots", width=360, height=140)
 
 
 async def open_snapshot(scenario: str) -> None:
     """Open an explicit exported snapshot with session-only preview lighting."""
-    global busy
+    global busy, labels
     if busy:
         return
     busy = True
@@ -33,6 +44,7 @@ async def open_snapshot(scenario: str) -> None:
         if not path.is_file():
             raise FileNotFoundError(f"Export the scene bundle first: {path}")
         context = omni.usd.get_context()
+        bundle = load_bundle(ROOT / ".local" / "omniverse-test" / "viewer.json")
         success, error = await context.open_stage_async(str(path))
         if not success:
             raise RuntimeError(error)
@@ -48,6 +60,9 @@ async def open_snapshot(scenario: str) -> None:
         if viewport is None or not frame_viewport_prims(viewport, ["/World/Concourse_A"]):
             raise RuntimeError("Could not frame the airport viewport")
         context.get_selection().set_selected_prim_paths([], False)
+        if labels is not None:
+            labels.destroy()
+        labels = AssetLabels(get_active_viewport_window(), bundle["labels"])
         assets = [prim for prim in stage.Traverse() if prim.HasAttribute("twin:asset_id")]
         if len(assets) != 10:
             raise RuntimeError(f"Expected ten assets, found {len(assets)}")

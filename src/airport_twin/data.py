@@ -27,6 +27,10 @@ READING_SCHEMA = (
     "asset_id STRING, ts TIMESTAMP, metric STRING, "
     "value_num DOUBLE, value_str STRING, run_id STRING"
 )
+ASSET_NAMES = {f"GATE_A{i}": f"A{i}" for i in range(1, 9)} | {
+    "SECURITY": "Security",
+    "BAGGAGE": "Baggage",
+}
 FLIGHT_SCHEMA = (
     "flight_id STRING, gate_id STRING, sched_dep TIMESTAMP, "
     "actual_dep TIMESTAMP, status STRING, run_id STRING"
@@ -82,14 +86,29 @@ def setup(platform: Platform) -> dict[str, Any]:
     for statement in render(sql_text("tables.sql"), values).split(";"):
         if statement.strip():
             platform.spark.sql(statement)
+    if "asset_name" not in platform.spark.table(platform.config.table("assets")).columns:
+        platform.spark.sql(
+            f"ALTER TABLE {platform.config.table('assets')} ADD COLUMNS (asset_name STRING)"
+        )
     merge_rows(
         platform,
         "assets",
-        ASSETS,
-        "asset_id STRING, asset_type STRING, zone STRING, prim_path STRING, display_name STRING",
+        [(*row, ASSET_NAMES[row[0]]) for row in ASSETS],
+        "asset_id STRING, asset_type STRING, zone STRING, prim_path STRING, "
+        "display_name STRING, asset_name STRING",
         ["asset_id"],
     )
-    actual = {tuple(r) for r in platform.spark.table(platform.config.table("assets")).collect()}
+    names = " ".join(f"WHEN '{key}' THEN '{value}'" for key, value in ASSET_NAMES.items())
+    platform.spark.sql(
+        f"UPDATE {platform.config.table('assets')} SET asset_name = CASE asset_id {names} END "
+        "WHERE asset_name IS NULL"
+    )
+    actual = {
+        tuple(r)
+        for r in platform.spark.table(platform.config.table("assets"))
+        .select("asset_id", "asset_type", "zone", "prim_path", "display_name")
+        .collect()
+    }
     if actual != set(ASSETS):
         raise ValueError("Existing assets differ from the v1 layout; explicit migration required")
     merge_rows(
