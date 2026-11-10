@@ -1,0 +1,187 @@
+"""Thin native renderer/controller. Governed data and interpolation live in the library."""
+
+from __future__ import annotations
+
+import asyncio
+import hashlib
+import os
+import time
+from pathlib import Path
+
+import carb
+import omni.kit.app
+import omni.kit.async_engine
+import omni.usd
+from airport_labels import AssetLabels
+from airport_panel import SnapshotPanel
+from omni.kit.viewport.utility import (
+    frame_viewport_prims,
+    get_active_viewport,
+    get_active_viewport_window,
+)
+from pxr import Gf, Sdf, Usd, UsdGeom, UsdLux
+
+from airport_twin.presentation import linear_rgb, transition_colours
+from airport_twin.viewer import load_bundle
+
+
+class AirportViewer:
+    def __init__(self, root: Path) -> None:
+        self.root = root
+        self.bundle = load_bundle(root / ".local/omniverse-test/viewer.json")
+        self.assets = self.bundle["runs"][0]["publication"]["assets"]
+        self.current = None
+        self.step = 59
+        self.busy = False
+        self.play_task = None
+        self.panel = SnapshotPanel(
+            self.bundle["legend"], self.choose_scenario, self.seek, self.play_pause, self.replay
+        )
+        self.labels = None
+        self.checksums = {}
+        omni.kit.async_engine.run_coroutine(self.start())
+
+    def choose_scenario(self, scenario: str) -> None:
+        omni.kit.async_engine.run_coroutine(self.switch(scenario))
+
+    async def switch(self, scenario: str) -> None:
+        self.pause()
+        await asyncio.sleep(0)
+        if self.busy:
+            return
+        run = next(r for r in self.bundle["runs"] if r["scenario"] == scenario)
+        await self.apply_frame(run, min(self.step, run["minutes"] - 1), 1.5)
+
+    def seek(self, step: int) -> None:
+        omni.kit.async_engine.run_coroutine(self.seek_async(step))
+
+    async def seek_async(self, step: int) -> None:
+        self.pause()
+        await asyncio.sleep(0)
+        if self.current is not None and not self.busy:
+            await self.apply_frame(self.current, step)
+
+    def pause(self) -> None:
+        if self.play_task is not None:
+            self.play_task.cancel()
+            self.play_task = None
+        self.panel.play_button.text = "Play"
+
+    def play_pause(self) -> None:
+        if self.play_task is not None:
+            self.pause()
+        elif self.current is not None and not self.busy:
+            self.play_task = omni.kit.async_engine.run_coroutine(self.play())
+
+    def replay(self) -> None:
+        omni.kit.async_engine.run_coroutine(self.restart())
+
+    async def restart(self) -> None:
+        self.pause()
+        await asyncio.sleep(0)
+        if self.current is not None and not self.busy:
+            self.play_task = omni.kit.async_engine.run_coroutine(self.play(reset=True))
+
+    async def play(self, reset: bool = False) -> None:
+        self.panel.play_button.text = "Pause"
+        try:
+            if reset or self.step == self.current["minutes"] - 1:
+                await self.apply_frame(self.current, 0)
+            while self.step < self.current["minutes"] - 1:
+                await asyncio.sleep(0.15)
+                await self.apply_frame(self.current, self.step + 1, 0.08)
+        except asyncio.CancelledError:
+            pass
+        finally:
+            self.play_task = None
+            self.panel.play_button.text = "Play"
+
+    def colours(self, values: dict[str, tuple]) -> None:
+        stage = omni.usd.get_context().get_stage()
+        with Usd.EditContext(stage, stage.GetSessionLayer()):
+            for asset in self.assets:
+                prim = stage.GetPrimAtPath(asset["prim_path"])
+                UsdGeom.Gprim(prim).CreateDisplayColorAttr([Gf.Vec3f(*values[asset["asset_id"]])])
+
+    async def apply_frame(self, run: dict, step: int, duration: float = 0) -> None:
+        if self.busy:
+            return
+        self.busy = True
+        self.panel.slider.enabled = False
+        try:
+            frame = run["frames"][step]
+            stage = omni.usd.get_context().get_stage()
+            start = {
+                asset["asset_id"]: tuple(
+                    UsdGeom.Gprim(stage.GetPrimAtPath(asset["prim_path"]))
+                    .GetDisplayColorAttr()
+                    .Get()[0]
+                )
+                for asset in self.assets
+            }
+            self.panel.status.text = f"Transitioning to {run['scenario']} · minute {step}"
+            if duration:
+                began = time.perf_counter()
+                while (elapsed := time.perf_counter() - began) < duration:
+                    self.colours(
+                        transition_colours(start, frame["states"], self.assets, elapsed, duration)
+                    )
+                    await omni.kit.app.get_app().next_update_async()
+            self.colours({r["asset_id"]: linear_rgb(r["colour"]) for r in frame["states"]})
+            with Usd.EditContext(stage, stage.GetSessionLayer()):
+                for row in frame["states"]:
+                    stage.GetPrimAtPath(row["prim_path"]).CreateAttribute(
+                        "twin:status", Sdf.ValueTypeNames.String
+                    ).Set(row["status"])
+                stage.GetSessionLayer().customLayerData = {
+                    "run_id": run["run_id"],
+                    "scenario": run["scenario"],
+                    "step": step,
+                    "source_push_id": run["audit"]["push_id"],
+                }
+            self.current, self.step = run, step
+            self.panel.update(run, step)
+            a4 = next(row for row in frame["states"] if row["asset_id"] == "GATE_A4")
+            self.panel.status.text = f"A4: {a4['status']} · {frame['ts']} UTC"
+        except Exception as error:
+            self.panel.status.text = str(error)
+            carb.log_error(f"AIRPORT_FILM_ERROR {error}")
+        finally:
+            self.busy = False
+            self.panel.slider.enabled = True
+
+    async def start(self) -> None:
+        for _ in range(10):
+            await omni.kit.app.get_app().next_update_async()
+        try:
+            scenario = os.getenv("TWIN_VIEWER_SCENARIO", "baseline")
+            run = next(r for r in self.bundle["runs"] if r["scenario"] == scenario)
+            path = self.root / ".local/omniverse-test" / f"{scenario}.usda"
+            context = omni.usd.get_context()
+            success, error = await context.open_stage_async(str(path))
+            if not success:
+                raise RuntimeError(error)
+            stage = context.get_stage()
+            self.checksums = {
+                Path(layer.realPath): hashlib.sha256(Path(layer.realPath).read_bytes()).hexdigest()
+                for layer in stage.GetUsedLayers()
+                if layer.realPath
+            }
+            if len([p for p in stage.Traverse() if p.HasAttribute("twin:asset_id")]) != 10:
+                raise RuntimeError("Expected ten asset prims")
+            with Usd.EditContext(stage, stage.GetSessionLayer()):
+                UsdLux.DomeLight.Define(stage, "/AirportPreview/Light").CreateIntensityAttr(700.0)
+            for _ in range(8):
+                await omni.kit.app.get_app().next_update_async()
+            self.labels = AssetLabels(get_active_viewport_window(), self.bundle["labels"])
+            frame_viewport_prims(get_active_viewport(), ["/World"])
+            await self.apply_frame(run, run["minutes"] - 1)
+            if any(
+                hashlib.sha256(path.read_bytes()).hexdigest() != sha
+                for path, sha in self.checksums.items()
+            ):
+                raise RuntimeError("Published scene layer changed")
+            carb.log_info(f"AIRPORT_FILM_READY {scenario} labels=10 replay_steps={run['minutes']}")
+        except Exception as error:
+            self.panel.status.text = str(error)
+            carb.log_error(f"AIRPORT_FILM_ERROR {error}")

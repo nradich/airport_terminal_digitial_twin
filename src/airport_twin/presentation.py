@@ -9,6 +9,71 @@ from airport_twin.layout import shape
 METRICS = ("peak_pax_A4", "gates_in_crit", "avg_co2", "security_queue_p95")
 
 
+def linear_rgb(colour: str) -> tuple[float, float, float]:
+    """Convert governed sRGB hex to USD's linear display colour."""
+    if len(colour) != 7 or not colour.startswith("#"):
+        raise ValueError("Expected #RRGGBB colour")
+    values = [int(colour[i : i + 2], 16) / 255 for i in (1, 3, 5)]
+    return tuple(v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4 for v in values)
+
+
+def interpolate_rgb(start: tuple, end: tuple, progress: float) -> tuple[float, float, float]:
+    """Clamp time and interpolate linear RGB; invalid measurements fail loudly."""
+    if (
+        len(start) != 3
+        or len(end) != 3
+        or not all(math.isfinite(v) for v in (*start, *end, progress))
+    ):
+        raise ValueError("Interpolation requires finite RGB triples and progress")
+    if any(not 0 <= value <= 1 for value in (*start, *end)):
+        raise ValueError("RGB values must be in [0, 1]")
+    t = max(0.0, min(1.0, progress))
+    if t == 0:
+        return tuple(start)
+    if t == 1:
+        return tuple(end)
+    return tuple(a + (b - a) * t for a, b in zip(start, end, strict=True))
+
+
+def ripple_progress(assets: list[dict], elapsed: float, duration: float = 1.5) -> dict[str, float]:
+    """A4 starts first; the distance-staggered wave finishes within duration."""
+    if not math.isfinite(elapsed) or not math.isfinite(duration) or duration <= 0:
+        raise ValueError("Invalid transition timing")
+    positions = {a["asset_id"]: shape(a).position for a in assets}
+    if "GATE_A4" not in positions:
+        raise ValueError("Ripple requires A4")
+    origin = positions["GATE_A4"]
+    distances = {key: math.dist(point, origin) for key, point in positions.items()}
+    maximum = max(distances.values()) or 1.0
+    return {
+        key: max(0.0, min(1.0, (elapsed / duration - 0.4 * value / maximum) / 0.6))
+        for key, value in distances.items()
+    }
+
+
+def transition_colours(
+    start: dict[str, tuple],
+    states: list[dict],
+    assets: list[dict],
+    elapsed: float,
+    duration: float = 1.5,
+) -> dict[str, tuple]:
+    """Ease the governed colour change, with a brief neutral ripple highlight."""
+    progress = ripple_progress(assets, elapsed, duration)
+    result = {}
+    if set(start) != {state["asset_id"] for state in states} or set(start) != set(progress):
+        raise ValueError("Transition assets differ")
+    for state in states:
+        key = state["asset_id"]
+        t = progress[key]
+        eased = t * t * (3 - 2 * t)
+        colour = interpolate_rgb(start[key], linear_rgb(state["colour"]), eased)
+        # The white glint is a presentation cue, never a change to governed severity.
+        pulse = 0.18 * math.sin(math.pi * t) if 0 < t < 1 else 0.0
+        result[key] = tuple(value + (1 - value) * pulse for value in colour)
+    return result
+
+
 def asset_labels(assets: list[dict]) -> list[dict]:
     """Build billboard anchors and governed names, never infer labels in Kit."""
     labels = []

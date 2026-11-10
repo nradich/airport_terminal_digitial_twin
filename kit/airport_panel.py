@@ -13,14 +13,22 @@ def ui_colour(value: str) -> int:
 
 
 class SnapshotPanel:
-    def __init__(self, legend: dict, on_scenario) -> None:
-        self.window = ui.Window("Airport snapshots", width=450, height=490)
+    def __init__(self, legend: dict, on_scenario, on_step, on_play, on_replay) -> None:
+        self.window = ui.Window("Airport snapshots", width=450, height=580)
         self.run_url = ""
+        self.synchronizing = False
         with self.window.frame:
             with ui.VStack(spacing=6):
                 with ui.HStack(spacing=6, height=32):
                     ui.Button("Baseline", clicked_fn=lambda: on_scenario("baseline"))
                     ui.Button("Delay A4", clicked_fn=lambda: on_scenario("delay_A4"))
+                self.slider = ui.IntSlider(min=0, max=59, height=24)
+                self.slider.model.add_value_changed_fn(
+                    lambda model: None if self.synchronizing else on_step(model.get_value_as_int())
+                )
+                with ui.HStack(spacing=6, height=28):
+                    ui.Button("Replay", clicked_fn=on_replay)
+                    self.play_button = ui.Button("Play", clicked_fn=on_play)
                 self.title = ui.Label("Airport concourse", height=22)
                 self.identity = ui.Label("", height=20)
                 self.metric_labels = [ui.Label("", height=22) for _ in range(4)]
@@ -50,3 +58,9 @@ class SnapshotPanel:
             label.text = text
         self.run_url = data["url"]
         self.url.model.set_value(self.run_url)
+        self.synchronizing = True
+        try:
+            self.slider.max = run["minutes"] - 1
+            self.slider.model.set_value(step)
+        finally:
+            self.synchronizing = False

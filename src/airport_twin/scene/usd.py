@@ -6,14 +6,8 @@ from pathlib import Path
 
 from pxr import Gf, Sdf, Usd, UsdGeom
 
+from airport_twin.presentation import linear_rgb as linear_rgb
 from airport_twin.scene.layout import shape
-
-
-def linear_rgb(colour: str) -> tuple[float, float, float]:
-    if len(colour) != 7 or not colour.startswith("#"):
-        raise ValueError("Expected #RRGGBB colour")
-    values = [int(colour[i : i + 2], 16) / 255 for i in (1, 3, 5)]
-    return tuple(v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4 for v in values)
 
 
 def base_bytes(assets: list[dict]) -> bytes:

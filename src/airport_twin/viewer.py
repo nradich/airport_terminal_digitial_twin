@@ -21,6 +21,7 @@ def prepare_bundle(platform: Any, run_ids: list[str]) -> dict[str, Any]:
     from airport_twin.data import sql_text
     from airport_twin.presentation import METRICS, asset_labels, legend_data, metric_values
     from airport_twin.scene import canonical, digest
+    from airport_twin.timeline import timeline_frames
     from airport_twin.tracking import assert_run, client, run_url
     from airport_twin.workflow import thresholds
 
@@ -56,6 +57,7 @@ def prepare_bundle(platform: Any, run_ids: list[str]) -> dict[str, Any]:
         }
         for step in range(int(run.data.params["minutes"])):
             metric_values(histories, step)
+        frames, timeline_versions = timeline_frames(platform, run_id)
         runs.append(
             {
                 "run_id": run_id,
@@ -66,6 +68,8 @@ def prepare_bundle(platform: Any, run_ids: list[str]) -> dict[str, Any]:
                 "run_url": run_url(platform.config, run_id),
                 "minutes": int(run.data.params["minutes"]),
                 "metric_history": histories,
+                "frames": frames,
+                "timeline_versions": timeline_versions,
             }
         )
     if {r["scenario"] for r in runs} != {"baseline", "delay_A4"} or len(runs) != 2:

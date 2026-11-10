@@ -4,9 +4,13 @@ from airport_twin.data import ASSET_NAMES, ASSETS
 from airport_twin.presentation import (
     METRICS,
     asset_labels,
+    interpolate_rgb,
     legend_data,
+    linear_rgb,
     metric_values,
+    ripple_progress,
     run_panel_data,
+    transition_colours,
 )
 
 
@@ -72,3 +76,32 @@ def test_panel_uses_exact_mlflow_step_and_run_identity():
     histories["avg_co2"].append({"step": 0, "value": 9})
     with pytest.raises(ValueError, match="duplicate"):
         metric_values(histories, 0)
+
+
+def test_linear_interpolation_endpoints_midpoint_and_clamping():
+    black, white = linear_rgb("#000000"), linear_rgb("#FFFFFF")
+    assert interpolate_rgb(black, white, -1) == black
+    assert interpolate_rgb(black, white, 2) == white
+    assert interpolate_rgb(black, white, 0.5) == (0.5, 0.5, 0.5)
+    assert 0.21 < linear_rgb("#808080")[0] < 0.22
+    with pytest.raises(ValueError, match="finite"):
+        interpolate_rgb(black, white, float("nan"))
+    with pytest.raises(ValueError, match="RGB"):
+        interpolate_rgb((-0.1, 0, 0), white, 0.5)
+
+
+def test_ripple_starts_at_a4_and_finishes_at_exact_governed_colours():
+    assets = named_assets()
+    start = {asset["asset_id"]: linear_rgb("#22C55E") for asset in assets}
+    states = [{"asset_id": asset["asset_id"], "colour": "#EF4444"} for asset in assets]
+    progress = ripple_progress(assets, 0.15)
+    assert progress["GATE_A4"] > progress["GATE_A1"]
+    assert ripple_progress(assets, 0)["GATE_A4"] == 0
+    assert set(ripple_progress(assets, 1.5).values()) == {1.0}
+    assert transition_colours(start, states, assets, 0) == start
+    assert all(
+        value == linear_rgb("#EF4444")
+        for value in transition_colours(start, states, assets, 1.5).values()
+    )
+    with pytest.raises(ValueError, match="timing"):
+        ripple_progress(assets, 0, 0)

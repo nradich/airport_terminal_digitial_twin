@@ -1,7 +1,7 @@
 WITH ranked AS (
   SELECT *, row_number() OVER (
-    PARTITION BY run_id, asset_id, metric ORDER BY ts DESC
-  ) AS rn FROM {{namespace}}.sensor_readings
+    PARTITION BY run_id, asset_id, metric{{time_partition}} ORDER BY ts DESC
+  ) AS rn FROM {{readings}}
 ), scored AS (
   SELECT r.asset_id, r.run_id, r.ts, r.metric, r.value_num, r.value_str,
     a.asset_type, a.prim_path, a.display_name, t.warn, t.crit,

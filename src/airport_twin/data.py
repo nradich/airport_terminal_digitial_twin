@@ -144,7 +144,14 @@ def setup(platform: Platform) -> dict[str, Any]:
             raise AssertionError("Qualified colour function failed boundary check")
         mode = "uc_function"
         colour = f"{platform.config.namespace}.status_colour(severity, 1D, 2D)"
-    values = {"namespace": platform.config.namespace, "colour_expression": colour}
+    values = {
+        "namespace": platform.config.namespace,
+        "colour_expression": colour,
+        "time_partition": "",
+        "time_column": "",
+        "readings": platform.config.table("sensor_readings"),
+        "state_source": platform.config.table("latest_state"),
+    }
     for view in ("latest_state", "gate_health"):
         platform.ensure_view(view, render(sql_text(view + ".sql"), values))
     LOG.info("SETUP_OK namespace=%s colour_logic=%s", platform.config.namespace, mode)

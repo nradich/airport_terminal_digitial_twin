@@ -62,6 +62,12 @@ def main() -> None:
         statements.append(render(sql_text("status_colour.sql"), values) + ";")
         colour = f"{config.namespace}.status_colour(severity, 1D, 2D)"
     values["colour_expression"] = colour
+    values.update(
+        time_partition="",
+        time_column="",
+        readings=config.table("sensor_readings"),
+        state_source=config.table("latest_state"),
+    )
     for view in ("latest_state", "gate_health"):
         query = render(sql_text(view + ".sql"), values)
         statements.append(f"CREATE OR REPLACE VIEW {config.table(view)} AS {query};")

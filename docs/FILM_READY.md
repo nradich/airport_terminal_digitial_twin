@@ -31,3 +31,18 @@ Four pure presentation tests passed. Live notebook preparation read five thresho
 rows and all sixty steps of four metrics from each explicit MLflow run and
 published bundle 654111c6. It rejects a stale publication when current thresholds
 do not match its recorded snapshot. Desktop panel verification follows step 5.
+
+## 3. Ripple and replay
+
+Shared SQL templates now score complete historical minute frames directly from
+the run-filtered sensor_readings table; no severity logic is copied into Kit.
+Both filming runs exported sixty complete frames with ten assets each. Their
+final A4 states remain ok versus crit. The controller blends in linear RGB over
+1.5 seconds, staggers by distance from A4, and adds a transient neutral glint so
+the wave is visible on unchanged healthy gates. Final colours are exact governed
+values; the glint never changes stored status or data.
+
+Added scrubber, replay and play/pause using exact per-step MLflow values. Seven
+presentation/timeline tests passed; the complete suite including live SQL and
+MLflow passed: 30 tests in 33.38s. Ruff clean. The versioned replay bundle was
+published and downloaded successfully. Desktop playback verification follows.
