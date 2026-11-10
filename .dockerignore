@@ -1,0 +1,4 @@
+.git
+.local
+.venv
+app/frontend/node_modules
