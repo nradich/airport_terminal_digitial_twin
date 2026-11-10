@@ -49,6 +49,8 @@ peak is 126; the delayed peak is 213. Both runs have sixty metric steps.
    or download the run's scene artifact directory. The state layer composes with
    terminal_base.usda via relative paths. An actual Omniverse Kit viewer session
    remains UNTESTED; Kit streaming and GPU rendering are deferred to M5.
+   [Omniverse test instructions](docs/OMNIVERSE.md) describe the prepared portable
+   snapshots and the current Composer setup route.
 
 ## Repeat without erasing history
 
