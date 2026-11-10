@@ -32,7 +32,7 @@ let selectedGate='GATE_A4',provenanceGeneration=0;
 async function inspectGate(assetId:string,reveal=false){
  if(reveal)$('provenance').scrollIntoView({block:'start',behavior:'smooth'});
  selectedGate=assetId;const ticket=++provenanceGeneration,epoch=generation,push=pub?.audit.push_id;
- if(!push)return;$('gate-title').textContent=assetId.replace('GATE_','')+' · Why this colour?';$('explanation').textContent='Checking publication evidence…';$('sensors').replaceChildren();
+ if(!push)return;$('gate-title').textContent=assetId.replace('GATE_','')+' · Why this color?';$('explanation').textContent='Checking publication evidence…';$('sensors').replaceChildren();
  try{const data=await get(`/api/publications/${push}/assets/${assetId}/provenance`,request?.signal);
   if(ticket!==provenanceGeneration||epoch!==generation||push!==pub?.audit.push_id)return;
   $('explanation').textContent=data.explanation;$('verification').textContent=(data.verification==='verified'?'Verified against published Delta versions':data.verification)+' · '+data.sensors[0].ts;

@@ -88,7 +88,7 @@ def gate_provenance(data, push_id: str, asset_id: str) -> dict:
         "step": manifest["step"],
         "push_id": push_id,
         "delta_versions": manifest["delta_versions"],
-        "rule": "Metric SQL severity → worst gate severity → governed hex colour",
+        "rule": "Metric SQL severity → worst gate severity → governed hex color",
         "rule_mode": frozen["replay_mode"]
         if frozen
         else "legacy canonical SQL; original rule identity not recorded",
