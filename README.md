@@ -17,6 +17,9 @@ per-minute replay, an A4 ripple, saved story cameras and Film mode. See
 [the 60-second shot list and tested preparation commands](FILMING.md) and
 [implementation evidence](docs/FILM_READY.md). All new commits remain local.
 
+The browser three.js App (same governed Delta data, second renderer) has a short
+viewer README with M7 polish screenshots: [app/README.md](app/README.md).
+
 M4 packaging and offline schema checks pass. Authenticated bundle validation and
 real Databricks execution are **UNTESTED** because no credentials are configured;
 M4 remains incomplete. See [portability evidence](docs/PORTABILITY.md).
