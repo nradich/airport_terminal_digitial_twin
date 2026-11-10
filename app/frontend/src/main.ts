@@ -24,24 +24,25 @@ function preset(name:string){
  controls?.dispose();controls=new OrbitControls(camera,renderer.domElement);controls.target.copy(convert(data[3]));controls.enableDamping=true;controls.update();
 }
 function resize(){if(!renderer||!camera)return;const w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h);labelRenderer.setSize(w,h);if(camera instanceof THREE.PerspectiveCamera)camera.aspect=w/h;else{camera.top=45*h/w;camera.bottom=-camera.top;}camera.updateProjectionMatrix();}
-function showImage(reason:string){imageMode=true;const img=$('fallback') as HTMLImageElement;img.src=`/api/publications/${pub.audit.push_id}/frame.png`;img.style.display='block';renderer?.domElement.style.setProperty('display','none');labelRenderer.domElement.style.display='none';$('message').textContent=`${pub.image_type} · ${reason}`;}
+function showImage(reason:string){imageMode=true;const img=$('fallback') as HTMLImageElement;img.onerror=()=>{$('message').textContent='Frame unavailable for this publication';};img.src=`/api/publications/${pub.audit.push_id}/frame.png`;img.style.display='block';renderer?.domElement.style.setProperty('display','none');labelRenderer.domElement.style.display='none';$('image').textContent='3D viewer';$('message').textContent=`${pub.image_type} · ${reason}`;}
 async function get(url:string,signal?:AbortSignal){const r=await fetch(url,{signal});const data=await r.json();if(!r.ok)throw new Error(data.message||data.error||r.statusText);return data;}
 let request:AbortController|undefined;
 async function select(run:Run){
- const epoch=++generation;request?.abort();request=new AbortController();active=run;$('status').textContent='Querying Unity Catalog…';
+ const epoch=++generation;request?.abort();request=new AbortController();active=run;$('status').textContent='Querying Unity Catalog…';if(model)model.visible=false;$('identity').textContent=`Loading run ${run.run_id}`;$('health').replaceChildren();
  try{
   const [publication,rows]=await Promise.all([get(`/api/publications/${run.push_id}`,request.signal),get(`/api/runs/${run.run_id}/current`,request.signal)]);
   if(epoch!==generation)return;pub=publication;
   $('identity').textContent=`Run ${run.run_id}\nPush ${pub.audit.push_id.slice(0,12)}`;
   ($('mlflow') as HTMLAnchorElement).href=run.run_url;
   $('thresholds').replaceChildren(...pub.legend.thresholds.map((row:any)=>{const p=document.createElement('div');p.textContent=row.text;return p;}));
-  if(model)scene.remove(model);assets.clear();
+  if(model){scene.remove(model);model.traverse(o=>{if(o instanceof CSS2DObject)o.element.remove();if(o instanceof THREE.Mesh){o.geometry.dispose();(o.material as THREE.Material).dispose();}});}assets.clear();
   if(renderer){try{
    const gltf=await new GLTFLoader().loadAsync(`/api/publications/${run.push_id}/model.glb`);
    if(epoch!==generation)return;model=gltf.scene;scene.add(model);
    model.traverse(o=>{if(o instanceof THREE.Mesh){o.material=(o.material as THREE.Material).clone();if(rows.some((r:State)=>r.asset_id===o.name))assets.set(o.name,o);}});
    if(assets.size!==10)throw new Error('Expected ten stable asset nodes');
    for(const row of rows){const mesh=assets.get(row.asset_id)!;(mesh.material as THREE.MeshStandardMaterial).color.set(row.colour);mesh.userData.status=row.status;}
+   renderer.domElement.dataset.assetStates=JSON.stringify([...assets].map(([id,mesh])=>({asset_id:id,status:mesh.userData.status,colour:'#'+(mesh.material as THREE.MeshStandardMaterial).color.getHexString()})));
    for(const row of pub.labels){const element=document.createElement('div');element.className='label';element.textContent=row.text;const label=new CSS2DObject(element);label.position.copy(convert(row.anchor));model.add(label);}
    preset('Overview');resize();
   }catch(error){showImage(String(error));}}
@@ -53,5 +54,6 @@ async function select(run:Run){
  }catch(error){if(epoch===generation){$('status').textContent='Data unavailable';$('message').textContent=String(error);}}
 }
 try{renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.outputColorSpace=THREE.SRGBColorSpace;stage.prepend(renderer.domElement);renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();if(pub)showImage('Graphics context lost');});scene.add(new THREE.HemisphereLight(0xffffff,0x7a8591,3));const light=new THREE.DirectionalLight(0xffffff,2);light.position.set(20,60,30);scene.add(light);renderer.setAnimationLoop(()=>{if(camera&&!imageMode){controls.update();renderer!.render(scene,camera);labelRenderer.render(scene,camera);}});}catch{renderer=undefined;}
-$('overview').onclick=()=>{preset('Overview');resize();};$('closeup').onclick=()=>{preset('A4CloseUp');resize();};$('image').onclick=()=>showImage('Selected');new ResizeObserver(resize).observe(stage);
+$('overview').onclick=()=>{preset('Overview');resize();};$('closeup').onclick=()=>{preset('A4CloseUp');resize();};$('image').onclick=()=>{if(imageMode&&renderer&&model){imageMode=false;renderer.domElement.style.display='block';labelRenderer.domElement.style.display='block';$('fallback').style.display='none';$('image').textContent='Image playback';$('message').textContent='Live SQL state';}else if(pub)showImage('Selected');};new ResizeObserver(resize).observe(stage);
 get('/api/runs').then((runs:Run[])=>{const dropdown=$('run') as HTMLSelectElement;for(const r of runs){const option=new Option(`${r.scenario} · ${r.run_id.slice(0,8)}`,r.run_id);dropdown.add(option);}const initial=runs.find(r=>r.scenario==='delay_A4')||runs[0];if(!initial)throw new Error('Publish GLB-enabled runs first');dropdown.value=initial.run_id;dropdown.onchange=()=>select(runs.find(r=>r.run_id===dropdown.value)!);return select(initial);}).catch(error=>{$('message').textContent=String(error);});
+

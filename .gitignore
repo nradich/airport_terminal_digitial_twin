@@ -11,3 +11,5 @@ build/
 .databricks/
 node_modules/
 app/static/
+test-results/
+playwright-report/
