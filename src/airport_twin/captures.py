@@ -139,6 +139,8 @@ def ingest_captures(platform: Any, directory: Path, run_ids: list[str]) -> dict:
             audit["step"],
             audit["preview_path"],
             str(stored),
+            audit["glb_path"],
+            audit["glb_sha256"],
         )
         count += 1
         if count % 20 == 0:

@@ -283,6 +283,8 @@ def migrate_push_metadata(platform: Any) -> None:
                 int(run.data.params["minutes"]) - 1,
                 row.preview_path,
                 row.capture_path,
+                row.glb_path,
+                row.glb_sha256,
             )
         )
     merge_rows(platform, "scene_pushes", rows, PUSH_SCHEMA, ["push_id"], update=True)

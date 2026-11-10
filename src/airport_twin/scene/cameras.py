@@ -2,15 +2,14 @@
 
 from pxr import Gf, Usd, UsdGeom, UsdLux
 
+from airport_twin.layout import CAMERAS
+
 
 def story_layer_bytes() -> bytes:
     stage = Usd.Stage.CreateInMemory()
     UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.z)
     UsdGeom.SetStageMetersPerUnit(stage, 1.0)
-    for name, display, eye, target, projection in (
-        ("Overview", "Overview", (21, -45, 65), (21, 0, 1), "orthographic"),
-        ("A4CloseUp", "Gate A4 close-up", (53, -7, 18.5), (42, 10, 2), "perspective"),
-    ):
+    for name, display, eye, target, projection in CAMERAS:
         camera = UsdGeom.Camera.Define(stage, "/World/Film/" + name)
         camera.GetPrim().SetDisplayName(display)
         camera.CreateProjectionAttr(projection)

@@ -18,7 +18,8 @@ from airport_twin.workflow import thresholds
 LOG = logging.getLogger(__name__)
 PUSH_SCHEMA = (
     "push_id STRING, ts TIMESTAMP, run_id STRING, n_prims INT, usd_path STRING, "
-    "scenario STRING, step INT, preview_path STRING, capture_path STRING"
+    "scenario STRING, step INT, preview_path STRING, capture_path STRING, "
+    "glb_path STRING, glb_sha256 STRING"
 )
 
 
@@ -106,11 +107,18 @@ def capture(platform: Platform, run_id: str, step: int = -1) -> dict:
 def write_publication(platform: Platform, snapshot: dict) -> dict:
     """Publish verified immutable files/artifacts; caller commits the audit in a batch."""
     from airport_twin.scene.cameras import story_layer_bytes
+    from airport_twin.scene.glb import glb_bytes
     from airport_twin.tracking import log_scene
 
     run_id = snapshot["run_id"]
     story = story_layer_bytes()
-    snapshot = {**snapshot, "story_sha256": digest(story)}
+    glb = glb_bytes(snapshot["assets"])
+    snapshot = {
+        **snapshot,
+        "story_sha256": digest(story),
+        "glb_sha256": digest(glb),
+        "glb_format": "airport-twin/glb-v1",
+    }
     identity = {
         k: snapshot[k]
         for k in (
@@ -123,6 +131,8 @@ def write_publication(platform: Platform, snapshot: dict) -> dict:
             "thresholds",
             "base_sha256",
             "story_sha256",
+            "glb_sha256",
+            "glb_format",
         )
     }
     identity["assets"] = sorted(snapshot["assets"], key=lambda r: r["asset_id"])
@@ -136,6 +146,8 @@ def write_publication(platform: Platform, snapshot: dict) -> dict:
     push_id = digest(canonical(identity))
     relative = f"runs/{run_id}/{push_id}/terminal_state_{run_id}.usda"
     transport = UsdVolumeTransport(platform.volume_root())
+    glb_relative = f"geometry/{snapshot['glb_sha256']}/terminal.glb"
+    transport.publish(glb_relative, glb)
     story_relative = f"story/{snapshot['story_sha256']}/terminal_story.usda"
     transport.publish(story_relative, story)
     payload = override_bytes(
@@ -158,6 +170,7 @@ def write_publication(platform: Platform, snapshot: dict) -> dict:
         "usd_path": str(path),
         "n_prims": len(snapshot["states"]),
         "story_relative": story_relative,
+        "glb_path": glb_relative,
     }
     import tempfile
 
@@ -193,6 +206,8 @@ def audit_rows(manifests: list[dict]) -> list[tuple]:
             m["step"],
             str(Path(m["usd_path"]).parent / "heatmap.png"),
             None,
+            m["glb_path"],
+            m["glb_sha256"],
         )
         for m in manifests
     ]

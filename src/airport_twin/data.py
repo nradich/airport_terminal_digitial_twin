@@ -98,6 +98,8 @@ def setup(platform: Platform) -> dict[str, Any]:
             ("step", "INT"),
             ("preview_path", "STRING"),
             ("capture_path", "STRING"),
+            ("glb_path", "STRING"),
+            ("glb_sha256", "STRING"),
         )
         if name not in push_columns
     ]
@@ -106,6 +108,22 @@ def setup(platform: Platform) -> dict[str, Any]:
             f"ALTER TABLE {platform.config.table('scene_pushes')} "
             f"ADD COLUMNS ({', '.join(missing)})"
         )
+    for name in ("assets", "flights", "sensor_readings", "thresholds", "scene_pushes"):
+        properties = {
+            r.key: r.value
+            for r in platform.spark.sql(
+                f"SHOW TBLPROPERTIES {platform.config.table(name)}"
+            ).collect()
+        }
+        retention = {
+            key: "interval 365 days"
+            for key in ("delta.deletedFileRetentionDuration", "delta.logRetentionDuration")
+        }
+        if any(properties.get(key) != value for key, value in retention.items()):
+            assignments = ", ".join(f"'{key}'='{value}'" for key, value in retention.items())
+            platform.spark.sql(
+                f"ALTER TABLE {platform.config.table(name)} SET TBLPROPERTIES ({assignments})"
+            )
     merge_rows(
         platform,
         "assets",

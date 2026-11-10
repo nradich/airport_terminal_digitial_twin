@@ -14,5 +14,6 @@ CREATE TABLE IF NOT EXISTS {{namespace}}.thresholds (
 ) USING DELTA{{thresholds_location}};
 CREATE TABLE IF NOT EXISTS {{namespace}}.scene_pushes (
   push_id STRING, ts TIMESTAMP, run_id STRING, n_prims INT, usd_path STRING,
-  scenario STRING, step INT, preview_path STRING, capture_path STRING
+  scenario STRING, step INT, preview_path STRING, capture_path STRING,
+  glb_path STRING, glb_sha256 STRING
 ) USING DELTA{{scene_pushes_location}};

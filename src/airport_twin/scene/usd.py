@@ -6,6 +6,7 @@ from pathlib import Path
 
 from pxr import Gf, Sdf, Usd, UsdGeom
 
+from airport_twin.layout import FLOOR
 from airport_twin.presentation import linear_rgb as linear_rgb
 from airport_twin.scene.layout import shape
 
@@ -19,8 +20,8 @@ def base_bytes(assets: list[dict]) -> bytes:
     UsdGeom.SetStageMetersPerUnit(stage, 1.0)
     floor = UsdGeom.Cube.Define(stage, "/World/Concourse_A/Floor")
     floor.CreateSizeAttr(1.0)
-    floor.AddTranslateOp().Set((21.0, 0.0, -0.25))
-    floor.AddScaleOp().Set((60.0, 15.0, 0.5))
+    floor.AddTranslateOp().Set(FLOOR.position)
+    floor.AddScaleOp().Set(FLOOR.size)
     floor.CreateDisplayColorAttr([Gf.Vec3f(0.12, 0.15, 0.19)])
     seen = set()
     for asset in sorted(assets, key=lambda a: a["asset_id"]):

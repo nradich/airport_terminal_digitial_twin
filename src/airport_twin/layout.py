@@ -12,6 +12,13 @@ class Shape:
     cylinder: bool = False
 
 
+FLOOR = Shape((21.0, 0.0, -0.25), (60.0, 15.0, 0.5))
+CAMERAS = (
+    ("Overview", "Overview", (21, -45, 65), (21, 0, 1), "orthographic"),
+    ("A4CloseUp", "Gate A4 close-up", (53, -7, 18.5), (42, 10, 2), "perspective"),
+)
+
+
 def shape(asset: dict) -> Shape:
     if asset["asset_type"] == "gate":
         index = int(asset["asset_id"].removeprefix("GATE_A")) - 1

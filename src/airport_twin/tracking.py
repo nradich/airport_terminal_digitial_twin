@@ -127,6 +127,8 @@ def log_scene(config: Config, manifest: dict) -> None:
     base = state.parents[3] / "terminal_base.usda"
     c.log_artifact(run_id, str(base), "scene")
     c.log_artifact(run_id, str(state), prefix)
+    if manifest.get("glb_path"):
+        c.log_artifact(run_id, str(base.parent / manifest["glb_path"]), prefix)
     if manifest.get("story_relative"):
         story = base.parent / manifest["story_relative"]
         c.log_artifact(run_id, str(story), "scene/" + str(Path(manifest["story_relative"]).parent))
@@ -162,6 +164,11 @@ def validate_scene_artifacts(config: Config, run_id: str, push_ids: list[str]) -
                 raise AssertionError("Retrieved base differs from the publication")
             if manifest["run_id"] != run_id or manifest["push_id"] != push_id:
                 raise AssertionError("Retrieved manifest has wrong lineage")
+            if (
+                manifest.get("glb_sha256")
+                and digest((directory / "terminal.glb").read_bytes()) != manifest["glb_sha256"]
+            ):
+                raise AssertionError("Retrieved GLB checksum differs")
             if manifest.get("story_relative"):
                 if (
                     digest((root / manifest["story_relative"]).read_bytes())
