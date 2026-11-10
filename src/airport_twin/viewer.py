@@ -21,6 +21,7 @@ def prepare_bundle(platform: Any, run_ids: list[str]) -> dict[str, Any]:
     from airport_twin.data import sql_text
     from airport_twin.presentation import METRICS, asset_labels, legend_data, metric_values
     from airport_twin.scene import canonical, digest
+    from airport_twin.scene.cameras import story_layer_bytes
     from airport_twin.timeline import timeline_frames
     from airport_twin.tracking import assert_run, client, run_url
     from airport_twin.workflow import thresholds
@@ -81,13 +82,20 @@ def prepare_bundle(platform: Any, run_ids: list[str]) -> dict[str, Any]:
         "runs": runs,
         "assets_version": platform.versions()["assets"],
         "legend": legend_data(limits, palette),
+        "story_sha256": digest(story_layer_bytes()),
     }
     payload = canonical(bundle)
     bundle_id = digest(payload)
     relative = f"viewer/{bundle_id}/viewer.json"
     UsdVolumeTransport(platform.volume_root()).publish(relative, payload)
+    UsdVolumeTransport(platform.volume_root()).publish(
+        f"story/{bundle['story_sha256']}/terminal_story.usda", story_layer_bytes()
+    )
     for run_id in run_ids:
         c.log_dict(run_id, json.loads(payload), relative)
+        c.log_text(
+            run_id, story_layer_bytes().decode("utf-8"), f"viewer/{bundle_id}/terminal_story.usda"
+        )
         c.set_tag(run_id, "twin.viewer_artifact", relative)
     return {"bundle_id": bundle_id, "artifact_path": relative}
 
@@ -107,6 +115,12 @@ def export_bundle(config: Any, run_id: str, destination: Path) -> Path:
         raise ValueError("Prepare a viewer bundle for the explicit run first")
     destination.mkdir(parents=True, exist_ok=True)
     bundle = load_bundle(Path(c.download_artifacts(run_id, artifact)))
+    import hashlib
+
+    story = Path(c.download_artifacts(run_id, artifact.rsplit("/", 1)[0] + "/terminal_story.usda"))
+    if hashlib.sha256(story.read_bytes()).hexdigest() != bundle["story_sha256"]:
+        raise ValueError("Story camera layer checksum mismatch")
+    (destination / "terminal_story.usda").write_bytes(story.read_bytes())
     for item in bundle["runs"]:
         folder = destination / item["scenario"]
         folder.mkdir(exist_ok=True)
@@ -126,7 +140,7 @@ def export_bundle(config: Any, run_id: str, destination: Path) -> Path:
         UsdGeom.SetStageMetersPerUnit(stage, 1.0)
         layer = Sdf.Layer.CreateAnonymous(".usda")
         layer.TransferContent(stage.GetRootLayer())
-        layer.subLayerPaths = [state.relative_to(destination).as_posix()]
+        layer.subLayerPaths = ["terminal_story.usda", state.relative_to(destination).as_posix()]
         layer.Export(str(destination / f"{item['scenario']}.usda"))
     target = destination / "viewer.json"
     target.write_text(json.dumps(bundle, indent=2), encoding="utf-8")

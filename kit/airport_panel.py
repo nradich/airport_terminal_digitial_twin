@@ -13,8 +13,10 @@ def ui_colour(value: str) -> int:
 
 
 class SnapshotPanel:
-    def __init__(self, legend: dict, on_scenario, on_step, on_play, on_replay) -> None:
-        self.window = ui.Window("Airport snapshots", width=450, height=580)
+    def __init__(
+        self, legend: dict, on_scenario, on_step, on_play, on_replay, on_camera, on_film
+    ) -> None:
+        self.window = ui.Window("Airport snapshots", width=450, height=640)
         self.run_url = ""
         self.synchronizing = False
         with self.window.frame:
@@ -29,6 +31,16 @@ class SnapshotPanel:
                 with ui.HStack(spacing=6, height=28):
                     ui.Button("Replay", clicked_fn=on_replay)
                     self.play_button = ui.Button("Play", clicked_fn=on_play)
+                with ui.HStack(spacing=6, height=28):
+                    ui.Button("Overview", clicked_fn=lambda: on_camera("Overview"))
+                    ui.Button("Gate A4 close-up", clicked_fn=lambda: on_camera("A4CloseUp"))
+                with ui.HStack(height=24):
+                    self.film = ui.CheckBox(width=24)
+                    self.film.model.set_value(True)
+                    self.film.model.add_value_changed_fn(
+                        lambda model: on_film(model.get_value_as_bool())
+                    )
+                    ui.Label("Film mode")
                 self.title = ui.Label("Airport concourse", height=22)
                 self.identity = ui.Label("", height=20)
                 self.metric_labels = [ui.Label("", height=22) for _ in range(4)]

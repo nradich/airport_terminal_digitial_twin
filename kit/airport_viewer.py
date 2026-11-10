@@ -9,17 +9,17 @@ import time
 from pathlib import Path
 
 import carb
+import carb.settings
 import omni.kit.app
 import omni.kit.async_engine
 import omni.usd
 from airport_labels import AssetLabels
 from airport_panel import SnapshotPanel
 from omni.kit.viewport.utility import (
-    frame_viewport_prims,
     get_active_viewport,
     get_active_viewport_window,
 )
-from pxr import Gf, Sdf, Usd, UsdGeom, UsdLux
+from pxr import Gf, Sdf, Usd, UsdGeom
 
 from airport_twin.presentation import linear_rgb, transition_colours
 from airport_twin.viewer import load_bundle
@@ -34,12 +34,45 @@ class AirportViewer:
         self.step = 59
         self.busy = False
         self.play_task = None
+        self.previous_guides = {}
         self.panel = SnapshotPanel(
-            self.bundle["legend"], self.choose_scenario, self.seek, self.play_pause, self.replay
+            self.bundle["legend"],
+            self.choose_scenario,
+            self.seek,
+            self.play_pause,
+            self.replay,
+            self.camera,
+            self.film_mode,
         )
         self.labels = None
         self.checksums = {}
         omni.kit.async_engine.run_coroutine(self.start())
+
+    def camera(self, name: str) -> None:
+        viewport = get_active_viewport()
+        if viewport is not None and name in {"Overview", "A4CloseUp"}:
+            viewport.camera_path = "/World/Film/" + name
+
+    def film_mode(self, enabled: bool) -> None:
+        viewport = get_active_viewport()
+        if viewport is None:
+            return
+        settings = carb.settings.get_settings()
+        for item in (
+            "guide/grid",
+            "guide/axis",
+            "guide/selection",
+            "scene/cameras",
+            "scene/lights",
+            "hud/renderFPS",
+            "hud/renderResolution",
+            "hud/deviceMemory",
+            "hud/hostMemory",
+        ):
+            key = f"/persistent/app/viewport/{viewport.id}/{item}/visible"
+            if key not in self.previous_guides:
+                self.previous_guides[key] = bool(settings.get(key))
+            settings.set(key, False if enabled else self.previous_guides[key])
 
     def choose_scenario(self, scenario: str) -> None:
         omni.kit.async_engine.run_coroutine(self.switch(scenario))
@@ -169,12 +202,11 @@ class AirportViewer:
             }
             if len([p for p in stage.Traverse() if p.HasAttribute("twin:asset_id")]) != 10:
                 raise RuntimeError("Expected ten asset prims")
-            with Usd.EditContext(stage, stage.GetSessionLayer()):
-                UsdLux.DomeLight.Define(stage, "/AirportPreview/Light").CreateIntensityAttr(700.0)
             for _ in range(8):
                 await omni.kit.app.get_app().next_update_async()
             self.labels = AssetLabels(get_active_viewport_window(), self.bundle["labels"])
-            frame_viewport_prims(get_active_viewport(), ["/World"])
+            self.camera("Overview")
+            self.film_mode(True)
             await self.apply_frame(run, run["minutes"] - 1)
             if any(
                 hashlib.sha256(path.read_bytes()).hexdigest() != sha

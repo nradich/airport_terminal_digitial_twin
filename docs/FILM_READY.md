@@ -46,3 +46,17 @@ Added scrubber, replay and play/pause using exact per-step MLflow values. Seven
 presentation/timeline tests passed; the complete suite including live SQL and
 MLflow passed: 30 tests in 33.38s. Ruff clean. The versioned replay bundle was
 published and downloaded successfully. Desktop playback verification follows.
+
+## 4. Story cameras and Film mode
+
+Saved Overview and Gate A4 close-up as native USD Camera prims in a separate,
+content-addressed story layer with neutral lighting. The layer is published to
+the scenes Volume and both MLflow runs; exported entry stages compose it without
+changing terminal_base.usda. A USD round-trip test passed and verified that the
+Overview frustum contains all ten asset centres.
+
+Added native camera buttons and Film mode. Grid, axes, selection guides, camera/
+light guides and performance HUD visibility use the installed Kit version's
+verified per-viewport settings. Turning Film mode off restores previous values.
+Ruff clean. Local camera-bundle preparation passed; final desktop inspection
+follows step 5. Remote rendering remains UNTESTED.
