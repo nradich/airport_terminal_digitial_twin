@@ -69,3 +69,51 @@ test('late scenario responses cannot overwrite selected run',async({page})=>{
  await expect(page.locator('#metrics')).toContainText('peak_pax_A4: 213');
 });
 
+test('pause during scenario blend settles exact colours and audit identity',async({page})=>{
+ await page.goto('/');await expect(page.locator('#status')).toHaveText('Unity Catalog connected');
+ await expect(page.locator('#metrics')).toContainText('peak_pax_A4: 213');
+ const canvas=page.locator('canvas');
+ await page.selectOption('#run','5767b836d78146fdab7d786a1795f8c7');
+ await expect(canvas).toHaveAttribute('data-blending','true');
+ await page.getByRole('button',{name:'Pause',exact:true}).click();
+ await expect(canvas).toHaveAttribute('data-blending','false');
+ await expect(page.getByRole('button',{name:'Play',exact:true})).toBeVisible();
+ await expect(page.locator('#status')).toHaveText('Unity Catalog connected');
+ await expect(page.locator('#identity')).toContainText('5767b836d78146fdab7d786a1795f8c7');
+ await expect(page.locator('#metrics')).toContainText('peak_pax_A4: 126');
+ await expect(page.locator('#step')).toHaveText('Minute 59 / 59');
+ const rows=JSON.parse((await canvas.getAttribute('data-asset-states'))!);
+ expect(rows.find((r:any)=>r.asset_id==='GATE_A4')).toMatchObject({status:'ok',colour:'#22c55e'});
+ expect(rows.find((r:any)=>r.asset_id==='GATE_A1').colour).toBe('#22c55e');
+});
+
+test('resize updates the WebGL canvas to the stage size',async({page})=>{
+ await page.goto('/');await expect(page.locator('#status')).toHaveText('Unity Catalog connected');
+ await expect(page.locator('.label')).toHaveCount(10);
+ const before=await page.locator('#stage').evaluate(el=>{
+  const canvas=el.querySelector('canvas') as HTMLCanvasElement;
+  return {stageW:el.clientWidth,stageH:el.clientHeight,canvasW:canvas.width,canvasH:canvas.height,cssW:canvas.clientWidth,cssH:canvas.clientHeight};
+ });
+ expect(before.cssW).toBe(before.stageW);
+ expect(before.cssH).toBe(before.stageH);
+ await page.setViewportSize({width:900,height:700});
+ await expect.poll(async()=>page.locator('#stage').evaluate(el=>(el.querySelector('canvas') as HTMLCanvasElement).clientWidth)).not.toBe(before.cssW);
+ const mid=await page.locator('#stage').evaluate(el=>{
+  const canvas=el.querySelector('canvas') as HTMLCanvasElement;
+  return {stageW:el.clientWidth,stageH:el.clientHeight,cssW:canvas.clientWidth,cssH:canvas.clientHeight,labelCount:el.querySelectorAll('.label').length};
+ });
+ expect(mid.cssW).toBe(mid.stageW);
+ expect(mid.cssH).toBe(mid.stageH);
+ expect(mid.labelCount).toBe(10);
+ await page.setViewportSize({width:1440,height:900});
+ await expect.poll(async()=>page.locator('#stage').evaluate(el=>(el.querySelector('canvas') as HTMLCanvasElement).clientWidth)).toBeGreaterThan(mid.cssW);
+ const after=await page.locator('#stage').evaluate(el=>{
+  const canvas=el.querySelector('canvas') as HTMLCanvasElement;
+  return {stageW:el.clientWidth,stageH:el.clientHeight,cssW:canvas.clientWidth,cssH:canvas.clientHeight};
+ });
+ expect(after.cssW).toBe(after.stageW);
+ expect(after.cssH).toBe(after.stageH);
+ await expect(page.locator('#status')).toHaveText('Unity Catalog connected');
+ await expect(page.locator('.label')).toHaveCount(10);
+});
+
