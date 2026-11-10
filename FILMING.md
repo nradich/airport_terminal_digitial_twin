@@ -58,6 +58,22 @@ edits. Do not reset Docker volumes, truncate tables, or delete previous runs to
 prepare a take. Restore deliberately edited thresholds to the captured values
 before comparing new takes with earlier runs.
 
+The preview retains a 16-active-file / 16-MiB input cap. Repeated small runs can
+reach the file cap even when their total size is small. Between takes, compact
+the affected tables in the platform-provided Spark notebook session:
+
+```python
+spark.sql("OPTIMIZE dbx_twin.airport.flights").collect()
+spark.sql("OPTIMIZE dbx_twin.airport.sensor_readings").collect()
+```
+
+These statements were executed locally: each table went from 20 active files to
+one. Bidirectional row comparisons with the previous Delta versions passed, and
+the readings preview again returned 50 rows with all six typed columns. This
+maintenance preserved all run rows and existing versions; no VACUUM was run.
+Use your configured catalog/schema when changing the defaults. See
+[Delta compaction documentation](https://docs.delta.io/optimizations-oss/).
+
 Python source notebooks preserve code/Markdown cell boundaries, including empty
 cells. Source files do not persist execution outputs or arbitrary .ipynb metadata;
 ordinary .ipynb notebooks retain the existing Jupyter behavior.
