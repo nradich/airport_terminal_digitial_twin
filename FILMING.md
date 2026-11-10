@@ -48,7 +48,8 @@ peak is 126; the delayed peak is 213. Both runs have sixty metric steps.
 9. To open the scene in an OpenUSD viewer, retain the entire scenes Volume folder
    or download the run's scene artifact directory. The state layer composes with
    terminal_base.usda via relative paths. An actual Omniverse Kit viewer session
-   remains UNTESTED; Kit streaming and GPU rendering are deferred to M5.
+   passed locally through the desktop Kit entry point; Kit streaming remains
+   deferred to M5.
    [Omniverse test instructions](docs/OMNIVERSE.md) describe the prepared portable
    snapshots and the current Composer setup route.
 

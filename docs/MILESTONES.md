@@ -117,3 +117,28 @@ Authenticated databricks bundle validate --strict -t dev was attempted with CLI
 validation and execution are **UNTESTED**; M4 is not complete. No push, upload or
 deployment occurred. PORTABILITY.md records commands, restrictions and remaining
 native-function, Volume filesystem and serverless dependency compatibility risks.
+
+## Desktop Omniverse inspection — passed
+
+The user authorized desktop Composer setup and feature-branch pushes. NVIDIA
+Kit App Template b8e9f2e4 generated airport.composer using the checked-in playback
+configuration. Kit 110.4.1 built successfully in 104.29s and initialized D3D12 /
+RTX Real-Time 2.0 on the desktop RTX 5060 Ti. SDK installation stays outside the
+Spark/RAPIDS environments; standard NVIDIA caches are documented in OMNIVERSE.md.
+
+The initial screenshot showed Composer's default New Stage, before airport data
+was loaded. Automated text input into its custom file picker was unreliable.
+kit/open_scene.py now opens explicit exported snapshots using Kit --exec, adds
+session-only preview lighting, frames the concourse and exposes two native
+snapshot buttons. The original unsaved stage was kept open in a separate window.
+
+Live GPU verification showed all ten assets, green A4 in baseline and red A4 plus
+amber security in delay_A4. Both buttons and a return to baseline were exercised.
+The Stage panel identified /World/Concourse_A/Gate_A4 on the red geometry.
+Kit logs recorded AIRPORT_VIEWER_READY for both scenarios. The script checked
+asset counts/status and unchanged published-layer file checksums. Ruff passed
+for src, tests, notebooks, scripts and kit. Published base geometry was unchanged.
+
+These remain final-minute snapshots, with simple box/cylinder geometry. Timeline
+replay, live Kit messaging and physics behavior are not implemented by this test.
+Authenticated Databricks validation/execution remains UNTESTED and M4 incomplete.

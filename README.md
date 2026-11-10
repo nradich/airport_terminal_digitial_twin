@@ -85,4 +85,5 @@ docker compose -f compose.yaml -f compose.spark.yaml exec -T spark-notebooks uv 
 The wheel is in dist; the 90-file offline wheelhouse and checksums are in
 .local/wheelhouse. The generated SQL targets Databricks managed tables and can
 be pasted into its SQL editor after reviewing names and permissions. Its remote
-execution is UNTESTED. No upload, push or deployment was performed.
+execution is UNTESTED. Implementation commits are pushed on codex/airport-twin;
+no Databricks upload or deployment was performed.

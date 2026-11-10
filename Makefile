@@ -4,7 +4,7 @@ test:
 integration:
 	TWIN_RUN_INTEGRATION=1 uv run pytest -q
 lint:
-	uv run ruff check src tests notebooks scripts
+	uv run ruff check src tests notebooks scripts kit
 build:
 	uv build --wheel
 offline:

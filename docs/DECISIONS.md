@@ -34,4 +34,9 @@
   that value; the empty default deliberately cannot produce an unidentified run.
 - M4 separates offline packaging/schema checks from authenticated workspace
   validation. The latter failed for missing credentials; M4 remains incomplete.
-  No deployment, upload or remote push is authorized or performed.
+  No deployment or upload was performed during M4 preparation. The user later
+  authorized pushing the airport and platform feature branches; both were pushed.
+- Desktop inspection uses a separate Kit --exec entry point with session-only
+  preview lighting and native snapshot buttons. This avoids unreliable automated
+  text entry in Composer's custom file picker and preserves the user's unsaved
+  original stage in a separate window. Published USD files stay unchanged.

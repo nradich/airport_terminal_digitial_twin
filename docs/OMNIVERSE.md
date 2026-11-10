@@ -67,10 +67,19 @@ NVIDIA's standard caches are C:\\packman-repo and
 .local/kit-app-template. The Kit app uses a separate desktop runtime; airport
 Spark notebooks remain CPU-only and the existing RAPIDS environment is unchanged.
 
-## Airport viewport acceptance — pending scene loading
+## Airport viewport acceptance — passed locally
 
-The current default New Stage is the Composer environment, not the airport.
-The following checks remain UNTESTED until the prepared airport file is opened.
+The initial screenshot's New Stage was the Composer environment, not the airport.
+Native desktop automation could not reliably type into the custom file picker.
+The tested startup entry point in [kit/README.md](../kit/README.md) loads the
+export directly with Kit --exec, supplies session-only lighting and frames it.
+Its Baseline and Delay A4 controls were tested in the running desktop app.
+All ten asset prims rendered; A4 changed from green/ok to red/crit, and security
+changed to warning amber. The Stage panel selected Gate_A4 and identified its
+prim path correctly. Published-layer checksums remained unchanged. The original
+unsaved New Stage remains open in a separate window.
+
+The manual route remains available:
 
 1. In Composer choose File → Open and open the prepared baseline.usda.
 2. Select /World/Concourse_A in the Stage panel and press F to frame the scene.
