@@ -165,6 +165,8 @@ def refresh_audits(platform: Any, run_ids: list[str]) -> dict[str, str]:
 
 def export_bundle(config: Any, run_id: str, destination: Path) -> Path:
     """Retrieve the governed artifact and complete relative USD composition trees."""
+    from tempfile import TemporaryDirectory
+
     from pxr import Sdf, Usd, UsdGeom
 
     from airport_twin.scene.usd import verify_composition
@@ -183,12 +185,34 @@ def export_bundle(config: Any, run_id: str, destination: Path) -> Path:
     story = Path(c.download_artifacts(run_id, artifact.rsplit("/", 1)[0] + "/terminal_story.usda"))
     if hashlib.sha256(story.read_bytes()).hexdigest() != bundle["story_sha256"]:
         raise ValueError("Story camera layer checksum mismatch")
-    (destination / "terminal_story.usda").write_bytes(story.read_bytes())
+    write_cache_file(destination / "terminal_story.usda", story.read_bytes())
     for item in bundle["runs"]:
         folder = destination / item["scenario"]
         folder.mkdir(exist_ok=True)
-        scene = Path(c.download_artifacts(item["run_id"], "scene", str(folder)))
         publication = item["publication"]
+        prefix = f"runs/{item['run_id']}/{publication['push_id']}"
+        files = [
+            "terminal_base.usda",
+            f"{prefix}/terminal_state_{item['run_id']}.usda",
+            f"{prefix}/manifest.json",
+            f"{prefix}/thresholds.json",
+            f"{prefix}/heatmap.png",
+        ]
+        if publication.get("story_relative"):
+            files.append(publication["story_relative"])
+        if item["audit"].get("capture_path"):
+            files.extend([f"{prefix}/viewport.png", f"{prefix}/viewport_receipt.json"])
+        # Download away from open Kit layers: identical files must keep their
+        # modification times or Composer reports a misleading base-file change.
+        # Replay uses governed frame data in viewer.json, so the desktop needs
+        # only the entry scene's composition, not every historical capture.
+        scene = folder / "scene"
+        with TemporaryDirectory() as temporary:
+            for relative in files:
+                source = Path(c.download_artifacts(item["run_id"], "scene/" + relative, temporary))
+                write_cache_file(
+                    scene / relative, source.read_bytes(), immutable=source.suffix == ".usda"
+                )
         state = (
             scene
             / "runs"
@@ -196,6 +220,13 @@ def export_bundle(config: Any, run_id: str, destination: Path) -> Path:
             / publication["push_id"]
             / f"terminal_state_{item['run_id']}.usda"
         )
+        if hashlib.sha256(state.read_bytes()).hexdigest() != publication["state_sha256"]:
+            raise ValueError("Exported state checksum differs from its publication")
+        if (
+            hashlib.sha256((scene / "terminal_base.usda").read_bytes()).hexdigest()
+            != publication["base_sha256"]
+        ):
+            raise ValueError("Exported base checksum differs from its publication")
         verify_composition(state, publication["states"])
         stage = Usd.Stage.CreateInMemory()
         stage.GetRootLayer().defaultPrim = "World"
@@ -206,10 +237,26 @@ def export_bundle(config: Any, run_id: str, destination: Path) -> Path:
         layer.subLayerPaths = [state.relative_to(destination).as_posix()]
         if not publication.get("story_relative"):
             layer.subLayerPaths.insert(0, "terminal_story.usda")
-        layer.Export(str(destination / f"{item['scenario']}.usda"))
+        write_cache_file(
+            destination / f"{item['scenario']}.usda", layer.ExportToString().encode("utf-8")
+        )
     target = destination / "viewer.json"
-    target.write_text(json.dumps(bundle, indent=2), encoding="utf-8")
+    write_cache_file(target, json.dumps(bundle, indent=2).encode("utf-8"))
     return target
+
+
+def write_cache_file(path: Path, payload: bytes, *, immutable: bool = False) -> None:
+    """Refresh artifact copies without touching unchanged files or edited USD."""
+    if path.exists():
+        if path.read_bytes() == payload:
+            return
+        if immutable:
+            raise ValueError(
+                f"Cached USD differs from its immutable artifact: {path}. "
+                "Export to a fresh directory to preserve local edits."
+            )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(payload)
 
 
 def migrate_push_metadata(platform: Any) -> None:

@@ -104,3 +104,40 @@ transfer and other Kit versions remain UNTESTED. Actual renderer PNG attachment
 uses the explicit capture/ingestion step; a CPU-only push logs its heatmap preview
 immediately. No Kit streaming, GPU compute in airport code, remote push or deploy
 was introduced. The local SQL-function fallback remains documented and active.
+
+## 2026-11-10 resumed verification and fixes
+
+Finished the native control checks: scrubbed Baseline 59 to 29, played and paused
+at 53, and captured that stable frame. Open in MLflow opened the correct baseline
+run in Chrome. A fresh native MLflow comparison showed both explicit filming
+runs and their 0–59 peak_pax_A4 histories, with maxima 126 and 213.
+
+Code review exposed a pause-during-blend cancellation gap even though that first
+sampled pause landed safely. Added a pure Python asynchronous presentation helper
+that commits exact final colours and lineage together before propagating pause
+cancellation. A deterministic test cancels midway through a blend and checks
+that the final frame is exact and committed once. Another test covers an instant
+frame. The updated Kit viewer played/paused at minute 27 and captured it with
+the existing exact-colour guard passing. It also captured Delay A4 minute 59
+from the saved close-up camera.
+
+Export now preserves identical cache files and fails without overwriting locally
+edited immutable USD. It downloads only the active entry compositions and their
+provenance, leaving historical captures in their authoritative stores. Live
+refresh preserved all 129 existing USD checksums and nanosecond modification
+times. A fresh nine-USD export reopened both stages, ten mapped assets and both
+cameras; A4 remained green versus red. Replay frames remain in viewer.json.
+
+Full suite: 36 passed in 54.03s, including live SQL/MLflow. Ruff clean. The
+export-preservation test verifies that modeling edits survive a conflicting
+export. Three new PNG receipts were ingested into the Volume and originating
+runs; 240 already committed receipts were skipped. The refreshed viewer artifact
+is viewer/005f130582419bbd1dbc62dcd881de1e9ec5db611c33e349f8c55ea52f8c6733/viewer.json.
+After those captures, validate-viewer retrieved and verified all 120 publications
+again, including the updated Volume/MLflow PNGs and their originating audit rows.
+
+Evidence logs in LocalUnityCatalog/.local: film-resume-tests-final.log,
+film-resume-export-bounded.log, film-resume-relocated.log,
+film-resume-captures.log and film-resume-validate.log. The updated desktop viewer
+is left on the delayed A4 close-up. Older windows were preserved. No remote push,
+deployment or platform-code changes were made; cloud gaps above remain UNTESTED.

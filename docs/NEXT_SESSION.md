@@ -1,7 +1,7 @@
-# Continue on 2026-11-10
+# Film-ready checkpoint — 2026-11-10
 
 Airport repo: C:\Users\nicho\Desktop\Workspace\Databricks\airport_term_digital_twin
-Branch: codex/airport-twin. Five film implementation steps committed locally;
+Branch: codex/airport-twin. Five film implementation steps plus verification fixes kept locally;
 no remote push or deployment. LocalUnityCatalog code was not changed in this task.
 Its untracked demo_audio.wav and docs/demo-plan.md were left untouched.
 
@@ -20,26 +20,32 @@ Read [FILM_READY.md](FILM_READY.md) for evidence and limitations, and
 
 Each run has sixty audited minute publications. All 120 actual viewport PNGs
 were retrieved and checked against UC/MLflow with validate-viewer. Final unit/live
-integration suite: 33 passed; Ruff clean. Re-ingestion skips committed captures;
+integration suite: 36 passed; Ruff clean. Re-ingestion skips committed captures;
 baseline final push retry reused its identity. History and base geometry remain.
 
-The ordinary Composer launch was left running on Baseline/Overview, Film mode on,
-with larger labels. It reached RTX ready; final desktop inspection was interrupted
-by physical Escape, so do not assume foreground/focus. Preserve the older unsaved
-New Stage window. Docker's eight services were running at handoff.
+The updated Composer viewer is left on Delay A4/Gate A4 close-up, Film mode on.
+Direct scrubbing, Play/Pause, paused-frame capture and the MLflow button passed.
+Cancellation during a blend now settles exact colours and audit identity together;
+pure regression tests cover it. Preserve the older unsaved New Stage window and
+other pre-existing viewer windows. Docker's eight services remain running.
 
-## First checks tomorrow
+## Next work
 
-1. Inspect the existing Airport snapshots window. Test direct scrubbing, Play/
-   Pause and Open in MLflow on the final build. Replay, scenario switching,
-   cameras and Film mode were already exercised. Compare the two explicit runs
-   above in native MLflow at http://localhost:5000/mlflow/.
-2. Run the 60-second shot list. Capture an A4 close-up if wanted: Capture frame,
-   then the documented collect-captures command. Actual PNG ingestion is explicit;
+1. Record the 60-second shot list. Native MLflow comparison was rechecked: both
+   explicit runs' complete peak_pax_A4 histories are visible by step, 126 vs 213.
+   Start at Baseline/Overview/minute 59, then Delay A4, close-up and MLflow.
+2. A fresh A4 close-up and paused frames were captured and logged. For new takes,
+   use Capture frame then collect-captures. Actual PNG ingestion is explicit;
    CPU-only pushes produce heatmap previews immediately.
 3. For a fresh desktop artifact, run the documented export_viewer.py command.
    For new data/thresholds, republish runs then prepare-viewer with explicit IDs.
    Do not reset volumes or truncate tables to prepare a take.
+
+Export now keeps identical USD timestamps and refuses to overwrite locally
+edited immutable USD. A clean export needs only nine USD files for both entry
+compositions; replay minute data is in viewer.json. All historical scene files
+and screenshots remain in UC Volume/MLflow. Use a new --output folder for a fresh
+export when preserving model edits.
 
 Launch from airport .local/kit-app-template with the command in kit/README.md.
 Use ordinary mode (TWIN_CAPTURE_ALL unset) for filming; the all-frame preflight
@@ -48,7 +54,9 @@ Desktop Kit uses its own runtime; Spark stays in Python 3.11 and RAPIDS is untou
 
 Evidence logs are in LocalUnityCatalog/.local: film-tests-final.log,
 film-publications-prepare.log, film-retry.log, film-capture-ingest-final.log,
-film-capture-retry.log and film-validate-viewer.log. Ignored desktop artifacts and
+film-capture-retry.log and film-validate-viewer.log. Latest evidence uses the
+film-resume-* prefix (tests-final, export-bounded, relocated, captures, validate).
+Ignored desktop artifacts and
 captures are in airport .local/omniverse-test. Do not commit those generated files.
 
 Remote Databricks execution/authenticated validation and capture-inbox transfer

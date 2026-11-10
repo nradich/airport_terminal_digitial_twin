@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import os
-import time
 from pathlib import Path
 
 import carb
@@ -22,7 +21,8 @@ from omni.kit.viewport.utility import (
 )
 from pxr import Gf, Sdf, Usd, UsdGeom
 
-from airport_twin.presentation import linear_rgb, transition_colours
+from airport_twin.playback import animate_frame
+from airport_twin.presentation import linear_rgb
 from airport_twin.viewer import load_bundle
 
 
@@ -176,35 +176,41 @@ class AirportViewer:
                 for asset in self.assets
             }
             self.panel.status.text = f"Transitioning to {run['scenario']} · minute {step}"
-            if duration:
-                began = time.perf_counter()
-                while (elapsed := time.perf_counter() - began) < duration:
-                    self.colours(
-                        transition_colours(start, frame["states"], self.assets, elapsed, duration)
-                    )
-                    await omni.kit.app.get_app().next_update_async()
-            self.colours({r["asset_id"]: linear_rgb(r["colour"]) for r in frame["states"]})
-            with Usd.EditContext(stage, stage.GetSessionLayer()):
-                for row in frame["states"]:
-                    stage.GetPrimAtPath(row["prim_path"]).CreateAttribute(
-                        "twin:status", Sdf.ValueTypeNames.String
-                    ).Set(row["status"])
-                stage.GetSessionLayer().customLayerData = {
-                    "run_id": run["run_id"],
-                    "scenario": run["scenario"],
-                    "step": step,
-                    "source_push_id": frame["push"]["push_id"],
-                }
-            self.current, self.step = run, step
-            self.panel.update(run, step)
-            a4 = next(row for row in frame["states"] if row["asset_id"] == "GATE_A4")
-            self.panel.status.text = f"A4: {a4['status']} · {frame['ts']} UTC"
+            await animate_frame(
+                start,
+                frame["states"],
+                self.assets,
+                duration,
+                self.colours,
+                omni.kit.app.get_app().next_update_async,
+                lambda: self.commit_frame(run, step),
+            )
         except Exception as error:
             self.panel.status.text = str(error)
             carb.log_error(f"AIRPORT_FILM_ERROR {error}")
         finally:
             self.busy = False
             self.panel.slider.enabled = True
+
+    def commit_frame(self, run: dict, step: int) -> None:
+        frame = run["frames"][step]
+        stage = omni.usd.get_context().get_stage()
+        self.colours({r["asset_id"]: linear_rgb(r["colour"]) for r in frame["states"]})
+        with Usd.EditContext(stage, stage.GetSessionLayer()):
+            for row in frame["states"]:
+                stage.GetPrimAtPath(row["prim_path"]).CreateAttribute(
+                    "twin:status", Sdf.ValueTypeNames.String
+                ).Set(row["status"])
+            stage.GetSessionLayer().customLayerData = {
+                "run_id": run["run_id"],
+                "scenario": run["scenario"],
+                "step": step,
+                "source_push_id": frame["push"]["push_id"],
+            }
+        self.current, self.step = run, step
+        self.panel.update(run, step)
+        a4 = next(row for row in frame["states"] if row["asset_id"] == "GATE_A4")
+        self.panel.status.text = f"A4: {a4['status']} · {frame['ts']} UTC"
 
     async def start(self) -> None:
         for _ in range(10):
@@ -252,6 +258,7 @@ class AirportViewer:
 
     async def capture_current(self) -> None:
         self.pause()
+        await asyncio.sleep(0)
         if self.busy or self.current is None:
             return
         self.busy = True

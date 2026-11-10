@@ -18,6 +18,12 @@ Baseline, then scrub to minute 59 before recording. The panel shows the exact
 run, minute, scene push and four MLflow metrics. Gate names come from UC assets;
 the legend shows current UC thresholds with inclusive warning/critical edges.
 
+Direct scrubbing, Play/Pause, paused-frame capture and Open in MLflow were
+exercised on 2026-11-10. Pausing during a blend settles the target minute's exact
+colours and audit identity together. Click the scrubber track to jump to a minute;
+Play resumes from it. The native MLflow peak_pax_A4 chart showed both complete
+0–59 histories, with peaks 126 (baseline) and 213 (delay_A4).
+
 | Time | Shot | Narration cue |
 | --- | --- | --- |
 | 0–10s | Overview, Baseline, minute 59 | Eight gates, two shared zones. A4 has departed; its final population is six. |
@@ -45,6 +51,17 @@ MLflow runs. It publishes sixty immutable, audited minute layers per run, each
 with a PNG heatmap, thresholds and manifest. Identical preparation reuses push
 identities. The viewer artifact is stored in the scenes Volume and both runs;
 the desktop files are downloaded artifact copies. There is no local database.
+
+Export downloads the active entry stages' composition files and provenance;
+historical publications stay in the Volume/MLflow. All replay minute data travels
+in viewer.json. Identical exports preserve USD timestamps to avoid Composer's
+base-file refresh notice. Export refuses to overwrite locally edited immutable
+USD; use a fresh --output directory when preserving modeling edits. A clean
+relocated export with nine USD files reopened both ten-asset stages successfully.
+
+MLflow's wall-clock run duration includes later scene publication sessions.
+Use simulation_elapsed_s when discussing simulator runtime, and Step for the
+simulated minute on comparison charts.
 
 Launch using [the Kit entry point](kit/README.md). The viewer never queries a
 new data service or creates Spark. It changes session opinions while replaying;
