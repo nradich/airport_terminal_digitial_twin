@@ -18,6 +18,7 @@ class TwinData:
         self.config, self.sql, self.volume = config, sql, volume
         self._push_cache: tuple[float, list[dict]] = (0, [])
         self._publications: dict[str, dict] = {}
+        self._palette: list[dict] | None = None
 
     def pushes(self) -> list[dict]:
         if time.monotonic() - self._push_cache[0] > 5:
@@ -25,6 +26,8 @@ class TwinData:
         return self._push_cache[1]
 
     def runs(self) -> list[dict]:
+        from airport_twin.comparison import run_comparison
+
         result = {}
         for push in self.pushes():
             if push["run_id"] not in result:
@@ -36,6 +39,7 @@ class TwinData:
                     "minutes": int(run.data.params["minutes"]),
                     "push_id": push["push_id"],
                     "run_url": run_url(self.config, push["run_id"]),
+                    "comparison": run_comparison(self, push["run_id"]),
                 }
         return list(result.values())
 
@@ -50,6 +54,8 @@ class TwinData:
         relative = self.volume.relative(audit["usd_path"])
         manifest_path = relative.rsplit("/", 1)[0] + "/manifest.json"
         manifest = json.loads(self.volume.read(manifest_path))
+        if self._palette is None:
+            self._palette = self.sql.read("palette")
         if any(
             audit[key] != manifest[key]
             for key in ("push_id", "run_id", "step", "scenario", "glb_path", "glb_sha256")
@@ -60,9 +66,7 @@ class TwinData:
             "manifest": manifest,
             "labels": asset_labels(manifest["assets"]),
             "cameras": CAMERAS,
-            "legend": legend_data(
-                [tuple(row) for row in manifest["thresholds"]], self.sql.read("palette")
-            ),
+            "legend": legend_data([tuple(row) for row in manifest["thresholds"]], self._palette),
             "image_type": "Renderer capture" if audit["capture_path"] else "Heatmap preview",
         }
         if len(self._publications) >= 1024:

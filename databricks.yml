@@ -12,6 +12,9 @@ variables:
     default: airport
   experiment:
     default: /Shared/airport-twin
+  experiment_id:
+    description: Existing dev MLflow experiment ID for the read-only App binding.
+    default: ""
   warehouse_id:
     description: Optional SQL editor or future App warehouse; notebooks use serverless compute.
     default: ""
@@ -32,11 +35,12 @@ artifacts:
   airport_wheel:
     type: whl
     path: .
-    build: uv build --wheel
+    build: uv run python scripts/package_app.py --target ${bundle.target} --var catalog=${var.catalog} --var schema=${var.schema} --var experiment=${var.experiment}
 
 sync:
   include:
     - dist/*.whl
+    - dist/app/**
   exclude:
     - .env
     - .venv/**

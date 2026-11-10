@@ -7,8 +7,12 @@ targets:
         airport_twin_app:
           name: airport-twin-app-${bundle.target}
           description: Read-only Concourse A browser twin (audited replay).
-          source_code_path: ../app
+          source_code_path: ../dist/app
           resources:
+            - name: mlflow-experiment
+              experiment:
+                experiment_id: ${var.experiment_id}
+                permission: CAN_READ
             - name: sql-warehouse
               sql_warehouse:
                 id: ${var.warehouse_id}

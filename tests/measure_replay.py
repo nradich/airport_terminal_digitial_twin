@@ -1,13 +1,25 @@
 """Executed inside the read-only local App container; emits no credentials."""
 
+import argparse
 import json
 import time
+from datetime import datetime, timedelta
 
 import requests
 
 from airport_twin.readers import LocalSqlReader, ReadError
 
-RUN = "7cf727f3ceee423594894181a9574fdb"
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--run-id")
+args = parser.parse_args()
+if args.run_id:
+    RUN = args.run_id
+else:
+    available = requests.get("http://localhost:8000/api/runs", timeout=45).json()
+    candidates = [row["run_id"] for row in available if row["minutes"] == 120]
+    if len(candidates) != 1:
+        raise ValueError("Supply --run-id for an unambiguous 120-step fixture")
+    RUN = candidates[0]
 URL = f"http://localhost:8000/api/runs/{RUN}"
 started = time.monotonic()
 replays = requests.get(URL + "/replays", timeout=90)
@@ -39,8 +51,8 @@ params = {
     "run_id": RUN,
     "versions": replay["identity"]["delta_versions"],
     "thresholds": replay["identity"]["thresholds"],
-    "start_ts": "2026-11-09T22:00:00",
-    "end_ts": "2026-11-10T00:00:00",
+    "start_ts": replay["start_ts"],
+    "end_ts": (datetime.fromisoformat(replay["start_ts"]) + timedelta(minutes=120)).isoformat(),
 }
 reader = LocalSqlReader()
 assert reader.read("raw_count", params) == [{"readings": 5040, "steps": 120}]

@@ -1,11 +1,7 @@
 # Databricks Apps runtime. Local Docker ignores this file and uses the Dockerfile CMD.
 command:
-  - uvicorn
-  - server.main:app
-  - --host
-  - "0.0.0.0"
-  - --port
-  - "${DATABRICKS_APP_PORT:-8000}"
+  - python
+  - launch.py
 env:
   - name: TWIN_PLATFORM
     value: "databricks"
@@ -21,3 +17,5 @@ env:
     value: "databricks-uc"
   - name: TWIN_WAREHOUSE_ID
     valueFrom: sql-warehouse
+  - name: MLFLOW_EXPERIMENT_ID
+    valueFrom: mlflow-experiment

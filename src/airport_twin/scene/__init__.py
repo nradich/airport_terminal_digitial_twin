@@ -106,15 +106,35 @@ def capture(platform: Platform, run_id: str, step: int = -1) -> dict:
 
 def write_publication(platform: Platform, snapshot: dict) -> dict:
     """Publish verified immutable files/artifacts; caller commits the audit in a batch."""
+    from importlib.metadata import version
+
+    from airport_twin.rules import rule_snapshot
     from airport_twin.scene.cameras import story_layer_bytes
     from airport_twin.scene.glb import glb_bytes
-    from airport_twin.tracking import log_scene
+    from airport_twin.tracking import git_sha, log_scene
 
     run_id = snapshot["run_id"]
     story = story_layer_bytes()
     glb = glb_bytes(snapshot["assets"])
     snapshot = {
         **snapshot,
+        "manifest_version": 2,
+        "rules": rule_snapshot(),
+        "publisher": {
+            "git_sha": git_sha(),
+            "package_version": version("airport-twin"),
+            "geometry_generator": "airport-twin/glb-v1",
+            "source_sha256": digest(
+                canonical(
+                    {
+                        str(path.relative_to(Path(__file__).resolve().parents[1])): digest(
+                            path.read_bytes()
+                        )
+                        for path in Path(__file__).resolve().parents[1].rglob("*.py")
+                    }
+                )
+            ),
+        },
         "story_sha256": digest(story),
         "glb_sha256": digest(glb),
         "glb_format": "airport-twin/glb-v1",
@@ -133,6 +153,10 @@ def write_publication(platform: Platform, snapshot: dict) -> dict:
             "story_sha256",
             "glb_sha256",
             "glb_format",
+            "delta_versions",
+            "rules",
+            "publisher",
+            "manifest_version",
         )
     }
     identity["assets"] = sorted(snapshot["assets"], key=lambda r: r["asset_id"])

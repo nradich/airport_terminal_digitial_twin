@@ -41,7 +41,7 @@ async def read_error(_request, error: ReadError):
 
 @app.get("/api/health")
 def health():
-    return {"ready": True, "mode": "current"}
+    return {"ready": True, "mode": "audited_replay"}
 
 
 @app.get("/api/runs")
@@ -85,6 +85,13 @@ def publication(push_id: str):
 @app.get("/api/publications/{push_id}/model.glb")
 def model(push_id: str):
     return Response(app.state.data.model(push_id), media_type="model/gltf-binary")
+
+
+@app.get("/api/publications/{push_id}/assets/{asset_id}/provenance")
+def provenance(push_id: str, asset_id: str):
+    from airport_twin.provenance import gate_provenance
+
+    return gate_provenance(app.state.data, push_id, asset_id)
 
 
 @app.get("/api/publications/{push_id}/frame.png")

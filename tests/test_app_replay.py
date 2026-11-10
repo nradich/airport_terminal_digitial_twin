@@ -11,6 +11,36 @@ from airport_twin.readers import ReadError
 from airport_twin.sim import simulate
 
 
+def test_replay_asset_identity_ignores_spark_collect_order(monkeypatch):
+    monkeypatch.setattr(
+        app_replay,
+        "assert_run",
+        lambda *_: SimpleNamespace(
+            data=SimpleNamespace(params={"minutes": "2", "start_utc": "2026-11-09T22:00:00"})
+        ),
+    )
+    assets = [{"asset_id": "GATE_A1"}, {"asset_id": "GATE_A2"}]
+    publications = {
+        str(step): {
+            "manifest": {
+                "step": step,
+                "delta_versions": {},
+                "thresholds": [],
+                "base_sha256": "base",
+                "glb_sha256": "glb",
+                "assets": assets if step == 0 else assets[::-1],
+            }
+        }
+        for step in range(2)
+    }
+    data = SimpleNamespace(
+        config=Config(),
+        pushes=lambda: [{"run_id": "run", "push_id": str(i)} for i in range(2)],
+        publication=publications.__getitem__,
+    )
+    assert len(app_replay.replay_sets(data, "run")) == 1
+
+
 def test_long_simulation_matches_spark_double_contract():
     result = simulate(SimulationConfig(minutes=120), "a" * 32)
     assert len(result.readings) == 5040

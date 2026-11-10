@@ -26,6 +26,14 @@ def replay_sets(data, run_id: str) -> list[dict]:
             for key in ("delta_versions", "thresholds", "glb_sha256", "base_sha256")
         }
         identity["run_id"] = run_id
+        identity["rule_id"] = manifest.get("rules", {}).get("rule_id", "legacy-unrecorded")
+        identity["story_sha256"] = manifest.get("story_sha256")
+        identity["publisher"] = manifest.get("publisher")
+        identity["assets_sha256"] = hashlib.sha256(
+            json.dumps(
+                sorted(manifest["assets"], key=lambda r: r["asset_id"]), sort_keys=True
+            ).encode()
+        ).hexdigest()
         key = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
         group = groups.setdefault(
             key,
@@ -51,6 +59,13 @@ def timeline(data, run_id: str, replay_id: str, start_step: int, end_step: int) 
     if not 0 <= start_step < end_step <= replay["minutes"] or end_step - start_step > 60:
         raise ReadError("INVALID_STEP_RANGE", status=422)
     identity = replay["identity"]
+    from airport_twin.rules import rule_snapshot
+
+    if identity.get("rule_id", "legacy-unrecorded") not in {
+        "legacy-unrecorded",
+        rule_snapshot()["rule_id"],
+    }:
+        raise ReadError("AUDIT_RULE_UNAVAILABLE", status=410)
     start = datetime.fromisoformat(replay["start_ts"])
     parameters = {
         "run_id": run_id,

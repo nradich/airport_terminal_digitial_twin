@@ -35,7 +35,7 @@ def build_query(name: str, parameters: dict, config: Config) -> ReadQuery:
         if parameters:
             raise ValueError("This query takes no parameters")
         return ReadQuery(plain[name], {})
-    if name in {"history", "raw_history", "raw_count"}:
+    if name in {"history", "raw_history", "raw_count", "asset_provenance"}:
         return history_query(name, parameters, config)
     if name != "current" or set(parameters) != {"run_id"}:
         raise ValueError("Unknown named read or parameters")
@@ -55,6 +55,10 @@ def history_query(name: str, parameters: dict, config: Config) -> ReadQuery:
     from airport_twin.data import render, sql_text
 
     expected = {"run_id", "versions", "thresholds", "start_ts", "end_ts"}
+    if name == "asset_provenance":
+        expected.add("asset_id")
+        if parameters.get("asset_id") not in {f"GATE_A{i}" for i in range(1, 9)}:
+            raise ValueError("Unknown gate")
     if set(parameters) != expected or not re.fullmatch(r"[a-f0-9]{32}", parameters["run_id"]):
         raise ValueError("Invalid historical read parameters")
     versions = parameters["versions"]
@@ -116,6 +120,11 @@ def history_query(name: str, parameters: dict, config: Config) -> ReadQuery:
         "colour_expression": sql_text("colour.sql"),
     }
     metrics = render(sql_text("latest_state.sql"), settings)
+    if name == "asset_provenance":
+        args["asset_id"] = parameters["asset_id"]
+        return ReadQuery(
+            f"SELECT * FROM ({metrics}) WHERE asset_id=:asset_id ORDER BY metric", args
+        )
     gates = render(sql_text("gate_health.sql"), settings)
     sql = (
         f"WITH metrics AS ({metrics}), gates AS ({gates}), states AS ("

@@ -15,6 +15,8 @@ from mlflow.entities import Metric, Param
 
 from airport_twin.config import Config, SimulationConfig
 
+_LOGGED_INPUTS: set[tuple] = set()
+
 
 def git_sha() -> str:
     if value := os.getenv("TWIN_GIT_SHA"):
@@ -122,6 +124,27 @@ def log_scene(config: Config, manifest: dict) -> None:
     c = client(config)
     run_id, push_id = manifest["run_id"], manifest["push_id"]
     assert_run(config, run_id)
+    import hashlib
+
+    from mlflow.entities import Dataset, DatasetInput, InputTag
+
+    for table, version in manifest["delta_versions"].items():
+        key = (config.tracking_uri, run_id, table, version)
+        if key not in _LOGGED_INPUTS:
+            source = json.dumps(
+                {"delta_table_name": config.table(table), "delta_table_version": version},
+                sort_keys=True,
+            )
+            dataset = Dataset(
+                config.table(table),
+                hashlib.sha256(source.encode()).hexdigest()[:32],
+                "delta_table",
+                source,
+            )
+            c.log_inputs(
+                run_id, [DatasetInput(dataset, [InputTag("mlflow.data.context", "scene_source")])]
+            )
+            _LOGGED_INPUTS.add(key)
     prefix = f"scene/runs/{run_id}/{push_id}"
     state = Path(manifest["usd_path"])
     base = state.parents[3] / "terminal_base.usda"

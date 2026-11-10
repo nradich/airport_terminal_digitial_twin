@@ -1,9 +1,8 @@
-# Local CPU App service. Spark may exist in the reused platform base image but
-# is never imported or started here; the query gateway owns compute.
-# Runtime pins live in app/requirements.txt (M7e packaging contract).
-FROM local-uc-spark:0.1.0
-COPY app/requirements.txt /tmp/airport-app-requirements.txt
-RUN uv pip install --system --no-cache -r /tmp/airport-app-requirements.txt
-WORKDIR /workspace/airport/app
-ENV PYTHONPATH=/workspace/airport/src UVICORN_HOST=0.0.0.0 UVICORN_PORT=8000
-CMD ["uvicorn", "server.main:app"]
+# Build dist/app first. No Spark engine or desktop source mounts are required.
+FROM python:3.11.14-slim
+RUN pip install --no-cache-dir uv==0.10.2
+WORKDIR /app
+COPY dist/app/ /app/
+RUN uv sync --locked --no-dev
+ENV PATH=/app/.venv/bin:$PATH UVICORN_PORT=8000
+CMD ["python", "launch.py"]
