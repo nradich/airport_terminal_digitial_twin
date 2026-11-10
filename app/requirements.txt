@@ -1,0 +1,7 @@
+# Airport twin App runtime (Python 3.11). No Spark/RAPIDS imports.
+# Local image still reuses the CPU platform base; these pins are the App's own
+# dependency contract for FastAPI presentation and UC/MLflow read clients.
+fastapi==0.115.0
+uvicorn==0.30.6
+requests==2.34.2
+mlflow==3.17.0
