@@ -29,7 +29,10 @@ from airport_twin.viewer import load_bundle
 class AirportViewer:
     def __init__(self, root: Path) -> None:
         self.root = root
-        self.bundle = load_bundle(root / ".local/omniverse-test/viewer.json")
+        self.directory = Path(os.getenv(
+            "TWIN_VIEWER_DIRECTORY", str(root / ".local/omniverse-test")
+        )).resolve()
+        self.bundle = load_bundle(self.directory / "viewer.json")
         self.assets = self.bundle["runs"][0]["publication"]["assets"]
         self.current = None
         self.step = 59
@@ -218,7 +221,7 @@ class AirportViewer:
         try:
             scenario = os.getenv("TWIN_VIEWER_SCENARIO", "baseline")
             run = next(r for r in self.bundle["runs"] if r["scenario"] == scenario)
-            path = self.root / ".local/omniverse-test" / f"{scenario}.usda"
+            path = self.directory / f"{scenario}.usda"
             context = omni.usd.get_context()
             success, error = await context.open_stage_async(str(path))
             if not success:
@@ -288,7 +291,7 @@ class AirportViewer:
                 raise ValueError("Viewport differs from the audited frame")
         for _ in range(5):
             await omni.kit.app.get_app().next_update_async()
-        folder = self.root / ".local/omniverse-test/captures"
+        folder = self.directory / "captures"
         folder.mkdir(parents=True, exist_ok=True)
         pending = folder / "pending.png"
         renderer = acquire_renderer_capture_interface()

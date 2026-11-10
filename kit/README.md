@@ -40,3 +40,9 @@ frame stages PNG receipts; notebook 07 ingests them through the shared library
 into the Volume/MLflow. No data-platform access is implemented in Kit. Kit needs
 the repository's src and kit folders (resolved by open_scene.py); desktop Kit's
 own Python runtime is separate from Python 3.11 airport compute.
+
+For a fresh immutable export, set TWIN_VIEWER_DIRECTORY to its absolute folder
+before launch. The default remains .local/omniverse-test. The configured folder
+supplies viewer.json, both USD entry stages and its own captures directory;
+existing edited exports are not overwritten. For this rehearsal the fresh folder
+is .local/omniverse-provenance. Use that captures folder explicitly when ingesting.
