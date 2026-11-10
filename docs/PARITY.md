@@ -55,7 +55,9 @@ through UC Volume metadata and a read-only /data mount. MLflow remains the only
 run/metric/artifact source. Audited replay pins Delta versions and thresholds;
 current snapshots remain an explicitly separate API. No local bundle deployment
 API is emulated. No VACUUM, log truncation or manual source-file deletion is
-allowed during audit.
+allowed during audit. App packaging declares least-privilege bindings in
+`resources/airport.app.yml` and runtime pins in `app/requirements.txt` /
+`app/app.yaml`; authenticated workspace validation is still UNVERIFIED.
 
 Local Spark UC-view binding workaround: stock UC OSS view expansion drops Spark
 named SQL parameters and raises UNBOUND_SQL_PARAMETER for `:name` binds against

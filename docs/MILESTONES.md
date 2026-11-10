@@ -142,3 +142,18 @@ for src, tests, notebooks, scripts and kit. Published base geometry was unchange
 These remain final-minute snapshots, with simple box/cylinder geometry. Timeline
 replay, live Kit messaging and physics behavior are not implemented by this test.
 Authenticated Databricks validation/execution remains UNTESTED and M4 incomplete.
+
+## M7 — browser twin (local complete; cloud incomplete)
+
+Local M7a–M7d deliverables are on `codex/airport-twin` (no push). Gateway tip
+`718a7eb` on LocalUnityCatalog `codex/airport-platform-prereqs`. Playwright against
+the live App is **8 passed**, including the post-filming pause-during-blend and
+resize tests. See `docs/M7.md` for commands, timings and commit IDs.
+
+M7e local packaging (`app/app.yaml`, `app/requirements.txt`,
+`resources/airport.app.yml`) is present. Authenticated
+`databricks bundle validate --strict -t dev` failed for missing default
+credentials — same class of blocker as M4. Cloud App / SQL connector execution,
+lean non-Spark App base, GPU 30 FPS desktop target, Dev OAuth/resource grants,
+restricted-network install and deployed WebGL remain **UNVERIFIED**. M7e is not
+complete until Nick supplies Databricks auth and a warehouse ID.

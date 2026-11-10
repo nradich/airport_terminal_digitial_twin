@@ -36,6 +36,28 @@ The travelling highlight is a presentation transition. Final colours, statuses
 and displayed metrics always use the selected run and simulation minute. The
 simple boxes/cylinders are an operational diagram, not a detailed terminal model.
 
+## Browser twin take (same governed data)
+
+Narrative: **same governed Delta data, two renderers.** Omniverse Composer remains
+the RTX hero path above; the browser App at http://localhost:8000 is the audited
+replay companion. Default mode is Audited replay (not the early Current state slice).
+
+| Beat | Shot | Check |
+| --- | --- | --- |
+| 1 | UC readings + a publication with USD/GLB | Tables/views/Volume; GLB path on `scene_pushes` |
+| 2 | Composer Baseline at an explicit run/minute | Run `5767b836…`, minute 59 |
+| 3 | Browser viewer at the same run/minute; orbit | Overview, ten labels, orbit |
+| 4 | Delay A4 in both renderers | Critical A4 and 213 passengers |
+| 5 | Matching earlier replay minute + audit identity | Scrub to minute 10; push ID updates |
+| 6 | Native MLflow comparison | Baseline peak 126 vs delayed peak 213 |
+
+Browser controls exercised locally: orbit, Overview/A4 cameras, scenario switch
+with 1.5s A4 ripple, Play/Pause, scrub, exact-step metrics, MLflow link. Pausing
+during the blend settles exact colours and audit identity together (Playwright).
+Canvas resize tracks the stage. First filming stills live under
+`app/frontend/.local/filming/` via `app/frontend/film.mjs`. Deployed-WebGL and
+desktop GPU FPS remain UNVERIFIED.
+
 ## Prepare the film viewer
 
 Run in the adjacent LocalUnityCatalog checkout. These use the same source

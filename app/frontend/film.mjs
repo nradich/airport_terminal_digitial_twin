@@ -1,4 +1,4 @@
-// First filming walkthrough; deliberately excludes deferred pause/blend and resize tests.
+// First filming walkthrough. Pause-during-blend and resize live in viewer.spec.ts.
 import {chromium,expect} from '@playwright/test';
 import {mkdir,writeFile} from 'node:fs/promises';
 await mkdir('.local/filming',{recursive:true});
