@@ -3,7 +3,7 @@ import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {CSS2DRenderer,CSS2DObject} from 'three/addons/renderers/CSS2DRenderer.js';
 
-type Run={run_id:string;scenario:string;run_name:string;minutes:number;push_id:string;run_url:string;comparison:{url:string|null;reason:string|null}};
+type Run={run_id:string;scenario:string;run_name:string;minutes:number;push_id:string;run_url:string;comparison:{url:string|null;reason:string|null;comparison_id?:string}};
 type State={asset_id:string;status:string;colour:string};
 const $=(id:string)=>document.getElementById(id)!;
 const stage=$('stage');
@@ -29,12 +29,13 @@ async function get(url:string,signal?:AbortSignal){const r=await fetch(url,{sign
 let request:AbortController|undefined;
 let seekGeneration=0;
 let selectedGate='GATE_A4',provenanceGeneration=0;
-async function inspectGate(assetId:string){
+async function inspectGate(assetId:string,reveal=false){
+ if(reveal)$('provenance').scrollIntoView({block:'start',behavior:'smooth'});
  selectedGate=assetId;const ticket=++provenanceGeneration,epoch=generation,push=pub?.audit.push_id;
  if(!push)return;$('gate-title').textContent=assetId.replace('GATE_','')+' · Why this colour?';$('explanation').textContent='Checking publication evidence…';$('sensors').replaceChildren();
  try{const data=await get(`/api/publications/${push}/assets/${assetId}/provenance`,request?.signal);
   if(ticket!==provenanceGeneration||epoch!==generation||push!==pub?.audit.push_id)return;
-  $('explanation').textContent=data.explanation;$('verification').textContent=data.verification==='verified'?'Verified against published Delta versions':data.verification;
+  $('explanation').textContent=data.explanation;$('verification').textContent=(data.verification==='verified'?'Verified against published Delta versions':data.verification)+' · '+data.sensors[0].ts;
   $('sensors').replaceChildren(...data.sensors.map((row:any)=>{const tr=document.createElement('tr');for(const value of [row.metric,row.value_num??row.value_str,row.warn===null?'—':`${row.warn} / ${row.crit}`,row.status]){const td=document.createElement('td');td.textContent=String(value);tr.append(td);}return tr;}));
   $('rule').textContent=data.rule+' · '+data.rule_mode;$('source-versions').textContent=`Run ${data.run_id.slice(0,8)} · push ${data.push_id.slice(0,12)} · minute ${data.step}\n`+Object.entries(data.delta_versions).map(([k,v])=>`${k} v${v}`).join(' · ');
   $('audit-details').textContent=JSON.stringify({sensors:data.sensors,details:data.details},null,2);
@@ -68,7 +69,7 @@ function paint(frame:any){
  ($('timeline') as HTMLInputElement).value=String(step);$('step').textContent=`Minute ${step} / ${active.minutes-1}`;
  $('identity').textContent=`${active.run_name}\nRun ${active.run_id}\nPush ${frame.push_id.slice(0,12)}\nReplay ${replay.replay_id.slice(0,12)}`;
  $('metrics').replaceChildren(...Object.entries(frame.metrics).map(([key,value])=>{const p=document.createElement('p');p.textContent=`${key}: ${Number(value).toFixed(key==='avg_co2'?1:0)}`;return p;}));
- $('health').replaceChildren(...frame.states.filter((r:State)=>r.asset_id.startsWith('GATE_')).map((r:any)=>{const tr=document.createElement('tr');for(const [i,value] of [r.asset_id.replace('GATE_',''),r.status,r.pax_count].entries()){const td=document.createElement('td');if(i===0){const button=document.createElement('button');button.textContent=String(value);button.setAttribute('aria-label','Explain '+value);button.onclick=()=>void inspectGate(r.asset_id);td.append(button);}else td.textContent=String(value??'—');td.style.color=r.colour;tr.append(td);}return tr;}));
+ $('health').replaceChildren(...frame.states.filter((r:State)=>r.asset_id.startsWith('GATE_')).map((r:any)=>{const tr=document.createElement('tr');for(const [i,value] of [r.asset_id.replace('GATE_',''),r.status,r.pax_count].entries()){const td=document.createElement('td');if(i===0){const button=document.createElement('button');button.textContent=String(value);button.setAttribute('aria-label','Explain '+value);button.onclick=()=>void inspectGate(r.asset_id,true);td.append(button);}else td.textContent=String(value??'—');td.style.color=r.colour;tr.append(td);}return tr;}));
  $('message').textContent=`Audited minute ${step} · A4 ${frame.states.find((r:State)=>r.asset_id==='GATE_A4').status}${replay.thresholds_changed?' · Current thresholds differ; published thresholds retained':''}`;
  if(imageMode)showImage('Exact published minute '+step);
  if(!playing)void inspectGate(selectedGate);else{++provenanceGeneration;$('explanation').textContent='Pause to inspect this minute';$('sensors').replaceChildren();$('source-versions').textContent='';$('rule').textContent='';}
@@ -129,7 +130,14 @@ if(renderer){
   if(!camera||Math.hypot(event.clientX-pointerDown[0],event.clientY-pointerDown[1])>5)return;
   const box=renderer!.domElement.getBoundingClientRect(),ray=new THREE.Raycaster();
   ray.setFromCamera(new THREE.Vector2((event.clientX-box.left)/box.width*2-1,-(event.clientY-box.top)/box.height*2+1),camera);
-  const hit=ray.intersectObjects([...assets.values()])[0];if(hit?.object.name.startsWith('GATE_'))void inspectGate(hit.object.name);
+  const hit=ray.intersectObjects([...assets.values()])[0];if(hit?.object.name.startsWith('GATE_'))void inspectGate(hit.object.name,true);
  });
 }
-get('/api/runs').then((runs:Run[])=>{const dropdown=$('run') as HTMLSelectElement;for(const r of runs){const option=new Option(`${r.scenario} · ${r.run_id.slice(0,8)}`,r.run_id);dropdown.add(option);}const initial=runs.find(r=>r.scenario==='delay_A4')||runs[0];if(!initial)throw new Error('Publish GLB-enabled runs first');dropdown.value=initial.run_id;dropdown.onchange=()=>select(runs.find(r=>r.run_id===dropdown.value)!);return select(initial);}).catch(error=>{$('message').textContent=String(error);});
+get('/api/runs').then((runs:Run[])=>{
+ const dropdown=$('run') as HTMLSelectElement;dropdown.add(new Option('Select a published run',''));
+ for(const r of runs)dropdown.add(new Option(`${r.scenario} · ${r.run_id.slice(0,8)}`,r.run_id));
+ dropdown.onchange=()=>{const chosen=runs.find(r=>r.run_id===dropdown.value);if(chosen)void select(chosen);};
+ const pairs=runs.filter(r=>r.scenario==='delay_A4'&&r.comparison?.comparison_id);
+ if(pairs.length===1){dropdown.value=pairs[0].run_id;return select(pairs[0]);}
+ $('status').textContent='Select a run';$('message').textContent='Choose an explicit published run; no unique filming pair is configured.';
+}).catch(error=>{$('message').textContent=String(error);});

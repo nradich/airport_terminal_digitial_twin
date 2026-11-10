@@ -24,6 +24,8 @@ jobs:
           cd dist/app
           .venv/bin/python -c "import airport_twin; from server.main import app; import importlib.util; assert importlib.util.find_spec('pyspark') is None"
       - run: uv run python tests/build_contract_fixture.py
+      - run: node validate-glb.mjs .local/contracts/terminal.glb
+        working-directory: app/frontend
       - run: npx playwright install --with-deps chromium
         working-directory: app/frontend
       - name: Synthetic browser contracts (not live integration)

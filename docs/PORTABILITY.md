@@ -84,3 +84,15 @@ the CLI commands; invoking Make itself on this PowerShell host is UNTESTED.
 References: [serverless environments](https://docs.databricks.com/aws/en/compute/serverless/dependencies),
 [task values](https://docs.databricks.com/aws/en/jobs/task-values),
 [Free Edition limits](https://docs.databricks.com/aws/en/getting-started/free-edition-limitations).
+
+## Current App packaging proof
+
+The App now uses its own pyproject.toml + uv.lock; requirements.txt was removed
+so Apps can select uv. The staged dist/app includes the shared wheel, built static
+frontend, resolved app.yaml and build checksums. app/Builder.Dockerfile passed
+the full build from a clean Git archive, isolated App imports and an offline cache
+reinstall. scripts/prepare_offline.py --app prepared a lock-addressed 98-wheel
+closure with SHA256SUMS/install.txt; fresh installation with network disabled passed.
+Uploading/installing this closure in Azure is UNVERIFIED. Local Docker has no source
+mount and no Spark installation. Keep cloud validation/execution distinct from
+these local proofs. See REHEARSAL.md and ../PREFLIGHT.md.

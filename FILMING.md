@@ -198,3 +198,24 @@ The overlay points Workspace Notebooks at the airport service on 8889. The
 original RAPIDS notebook service remains unchanged at
 http://localhost:8888/jupyter/. The base platform configuration continues to
 target it when the airport overlay is not applied.
+# Current M7 rehearsal: same governed data, two renderers
+
+Use the four-minute storyboard in [BACKLOG_PLAN.md](docs/BACKLOG_PLAN.md) and
+the one-page [PREFLIGHT.md](PREFLIGHT.md). Start with native MLflow comparison,
+then Composer baseline, browser at the same minute, delayed A4, and gate provenance.
+Close with **Compare in MLflow**, the exact two selected runs and 126 versus 213.
+
+The gate panel shows the explanation, five sensor rows, colour rule, run/push and
+source versions. Keep Details collapsed; hashes, frozen SQL and publisher identity
+are available there. Gate geometry and the accessible gate-table buttons both work.
+The App defaults only to a unique explicitly published filming pair; otherwise
+select a run. It never guesses a latest comparison pair.
+
+Current publications use manifest v2 and frozen rule identity. Legacy files remain
+unchanged and show their metadata limitations. New scene-source Delta datasets
+are logged as native MLflow inputs. Application provenance is distinct from native
+UC lineage, which remains UNVERIFIED until the Azure session.
+
+The updated browser walkthrough is `app/frontend/film.mjs`; its recorded stills
+include browser-provenance.png and mlflow-comparison.png. See
+[REHEARSAL.md](docs/REHEARSAL.md) for actual evidence and unresolved cloud checks.

@@ -19,3 +19,7 @@ env:
     valueFrom: sql-warehouse
   - name: MLFLOW_EXPERIMENT_ID
     valueFrom: mlflow-experiment
+  # Populate only after observing the real workspace's native comparison URL.
+  # Supported placeholders: {baseline_run_id}, {delay_run_id}, {experiment_id}.
+  - name: TWIN_MLFLOW_COMPARE_URL_TEMPLATE
+    value: ""

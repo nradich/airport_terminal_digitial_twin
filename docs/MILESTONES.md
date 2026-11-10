@@ -157,3 +157,11 @@ credentials — same class of blocker as M4. Cloud App / SQL connector execution
 lean non-Spark App base, GPU 30 FPS desktop target, Dev OAuth/resource grants,
 restricted-network install and deployed WebGL remain **UNVERIFIED**. M7e is not
 complete until Nick supplies Databricks auth and a warehouse ID.
+
+Portable/provenance follow-up: local implementation checkpoint 5caf847; self-contained
+App, explicit MLflow comparison and five-row gate explanation. New publications
+freeze SQL/source versions/publisher identity and log native Delta inputs. Local
+contracts/build/replay evidence is green; see REHEARSAL.md. M4/M7e cloud proof,
+real service-principal enforcement and native workspace comparison/lineage remain
+UNVERIFIED. The gateway mount follow-up is on the separate platform branch at
+046b3e7, not pushed. M6 and imported props remain on hold.

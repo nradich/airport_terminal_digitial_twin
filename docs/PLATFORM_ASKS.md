@@ -45,3 +45,10 @@ requested before claiming M7e complete:
 - Optional lean non-Spark App base image (local still reuses `local-uc-spark`
   without importing Spark).
 - Restricted-network install path and deployed WebGL confirmation.
+
+Current local implementation adds disposable notebook 11 contracts for the dev
+session, frozen-rule gate provenance and native MLflow dataset-input references.
+All local parity checks passed. The clean App runs without a desktop source mount;
+platform mount change is committed separately at 046b3e7. Cloud resource grants,
+comparison URL template and UC lineage need the actual workspace. No new platform
+PR or remote deployment was performed; review remains approval-gated.

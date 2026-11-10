@@ -10,7 +10,7 @@ test.beforeEach(async({page})=>{
   const states=metadata.labels.map((label:any)=>({asset_id:label.asset_id,status:delayed&&label.asset_id==='GATE_A4'?'crit':'ok',colour:delayed&&label.asset_id==='GATE_A4'?'#EF4444':'#22C55E',pax_count:delayed?213:6}));
   const pair=`http://mlflow.invalid/#/compare-runs?runs=${encodeURIComponent(JSON.stringify(ids))}`;
   let data:any;
-  if(url.pathname==='/api/runs')data=ids.map((id,i)=>({run_id:id,scenario:i?'delay_A4':'baseline',run_name:'Contract fixture',minutes:120,push_id:'push',run_url:'http://mlflow.invalid/run/'+id,comparison:{url:pair,reason:null}}));
+  if(url.pathname==='/api/runs')data=ids.map((id,i)=>({run_id:id,scenario:i?'delay_A4':'baseline',run_name:'Contract fixture',minutes:120,push_id:'push',run_url:'http://mlflow.invalid/run/'+id,comparison:{comparison_id:"contract",url:pair,reason:null}}));
   else if(url.pathname.endsWith('/replays'))data=[{replay_id:'replay',images:Array.from({length:120},(_,step)=>({step,push_id:'push'+step,image_type:'Heatmap preview'}))}];
   else if(url.pathname.endsWith('/timeline')){const start=Number(url.searchParams.get('start_step')),end=Number(url.searchParams.get('end_step'));if(start===0)await new Promise(resolve=>setTimeout(resolve,600));data={end_step:end,frames:Array.from({length:end-start},(_,i)=>({step:start+i,push_id:'push'+(start+i),states,metrics:{peak_pax_A4:delayed?213:126},image_type:'Heatmap preview'}))};}
   else if(url.pathname.endsWith('/model.glb'))return route.fulfill({contentType:'model/gltf-binary',body:await readFile('.local/contracts/terminal.glb')});

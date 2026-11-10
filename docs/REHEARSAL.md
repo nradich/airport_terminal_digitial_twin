@@ -35,8 +35,11 @@ docker compose -f compose.yaml -f compose.spark.yaml -f compose.twin-app.yaml up
 ```
 
 The skip-frontend build followed an actual npm typecheck/build in the Node image.
-The full package command (including npm ci/build) is prepared for CI and must be
-rehearsed in a clean combined build environment before claiming that path tested.
+The full package command (including npm ci/build) subsequently passed from a clean
+Git archive of 5caf847 in app/Builder.Dockerfile (Node 22, uv 0.10.2, Python 3.11.14).
+The isolated staged App imported without Spark and its cached offline reinstall
+passed. A separately exported **98-wheel** closure installed into a fresh
+environment with Docker network disabled: OFFLINE_APP_IMPORT_OK.
 Gateway contracts passed **2/2**. Public GitHub CI activation is UNVERIFIED because
 the workflow has not been pushed; synthetic checks never connect to the desktop.
 
@@ -57,3 +60,32 @@ The dev comparison link stays unavailable until a verified workspace route templ
 is configured; it never substitutes a guessed URL. See ../PREFLIGHT.md.
 M4/M7e remain incomplete until authenticated validation and deployed acceptance pass.
 M6 and external props remain on hold. Gateway review is local only; no PR was opened.
+
+## Final rehearsal follow-up
+
+Both browser projects passed together: **12 passed (1.3m)**. Offline GLB validation
+reported zero errors, warnings, infos and hints. The current filming script discovers
+the explicit pair, captures the five-row explanation with Details closed, and opens
+the native 126/213 comparison; cached scrub measured **2 ms** in software Chromium.
+Native desktop GPU FPS is not measured by that test. Stills are in
+app/frontend/.local/filming (ignored), including browser-provenance.png and
+mlflow-comparison.png.
+
+Read-only 120-step measurement passed in **3.768s**: each page had 600 SQL states
+and 240 metric points; actual response sizes 186799/186107 bytes. Raw 5040-row
+read hit the unchanged limit and nonexistent Delta version returned HTTP 410.
+The script was passed on stdin into the clean App; there is no source mount.
+
+Both new Composer exports composed to the recorded colours through OpenUSD.
+They are in a fresh .local/omniverse-provenance folder; existing edited exports and
+desktop windows were not replaced. Reloading that fresh bundle in RTX Composer
+remains a manual pre-filming check. New publication b2a3d60037327432d0610251b2d557b204a104d6039bf93fc0a35a1063070594
+records publisher 5caf84733760f5a67508ba409199352034d58446 and frozen rule
+1c952bfaca272d5ca77737a2126dad41d4fa9dbf3938509cd4d75405b6e89558;
+the originating delayed run has **four native Delta dataset inputs**.
+
+Authenticated CLI validation was attempted again: failed for missing default
+credentials. This is an actual failure, not a passed cloud validation. See ignored
+.local/dev-validate.log. Offline schema validation passed including App resources.
+App POST /api/runs returned **405** and its sole data mount is **/data RW=false**;
+actual cloud service-principal enforcement remains UNVERIFIED.

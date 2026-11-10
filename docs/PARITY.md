@@ -67,3 +67,25 @@ parameter checks (strings may not contain quotes, backslashes or SQL punctuation
 Canonical airport SQL templates stay unchanged. Databricks/dev uses the SQL
 Connector's native named binds. See LocalUnityCatalog docs/query-gateway.md;
 platform history gateway commit 718a7eb.
+## Current portable App and audit contracts
+
+The App uses a staged shared wheel, frontend and app/uv.lock in a Python 3.11 CPU
+image; only the scenes backing storage is mounted read-only locally. The Spark
+gateway still uses platform compute and the fixed dbx_twin.airport registry.
+Local 429 capacity responses receive bounded retries; no row/concurrency limits
+were raised. Dev has native named parameters, row/byte bounds and a 30-second
+deadline with cancellation; missing history maps to the same HTTP 410 contract.
+Native cloud auth/grants/error responses remain UNVERIFIED (mock contracts pass).
+
+Rule-identified publications freeze SQL templates and publisher/source identity.
+Older manifests remain readable with an explicit legacy-rule limitation. A future
+unsupported frozen rule returns AUDIT_RULE_UNAVAILABLE rather than executing
+caller SQL. Provenance can show the published snapshot with an unavailable-history
+label; it never substitutes current rows. New native MLflow dataset inputs describe
+source Delta tables/versions; file relationships remain recorded in manifests.
+
+Native comparison routing is isolated in comparison.py. Local MLflow 3.17 routing
+is verified; dev requires a route template observed in the actual workspace. No
+Databricks URL is guessed. Notebook 11 uses unique disposable schemas for the same
+table/view/Volume/MLflow parity contracts; local cleanup uses UC metadata and scoped
+files, while dev uses managed UC objects. Cloud execution remains UNVERIFIED.

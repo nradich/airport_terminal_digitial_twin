@@ -1,63 +1,46 @@
-# Film-ready checkpoint — 2026-11-10
+# Next session — Azure proof remains gated
 
-Airport repo: C:\Users\nicho\Desktop\Workspace\Databricks\airport_term_digital_twin
-Branch: codex/airport-twin. Five film implementation steps plus verification fixes kept locally;
-no remote push or deployment. LocalUnityCatalog code was not changed in this task.
-Its untracked demo_audio.wav and docs/demo-plan.md were left untouched.
+Airport: cursor/m7-browser-twin-pr-41e6. Implementation checkpoint 5caf847.
+Platform: codex/airport-platform-prereqs, latest 046b3e7; three commits ahead of
+its remote. No push, new PR or deployment was performed. The unrelated platform
+files demo_audio.wav and docs/demo-plan.md remain untouched.
 
-## Stable checkpoint
+## What to open
 
-Labels, governed legend/run details, A4 ripple, minute replay, saved cameras,
-Film mode and per-minute publication lineage are implemented. Databricks-only
-data access remains in airport_twin modules through the existing platform adapter.
-Read [FILM_READY.md](FILM_READY.md) for evidence and limitations, and
-[FILMING.md](../FILMING.md) for tested commands and the 60-second shot list.
+- Browser twin: http://localhost:8000. Click a gate or its gate-table button.
+- Tight provenance: explanation, five rows, rule, run/push and source versions;
+  Details collapsed. Compare in MLflow opens the explicit filming pair.
+- MLflow: http://localhost:5000/mlflow/ (experiment /Shared/airport-twin).
+- Start tomorrow with ../PREFLIGHT.md; evidence is in REHEARSAL.md.
 
-| Scenario | MLflow run | Final push prefix |
-| --- | --- | --- |
-| baseline | 5767b836d78146fdab7d786a1795f8c7 | de41b2323d41 |
-| delay_A4 | 7a617dc8b34b41f98b02725e04db4944 | 79eaf0fcd0e4 |
+## Current filming identities
 
-Each run has sixty audited minute publications. All 120 actual viewport PNGs
-were retrieved and checked against UC/MLflow with validate-viewer. Final unit/live
-integration suite: 36 passed; Ruff clean. Re-ingestion skips committed captures;
-baseline final push retry reused its identity. History and base geometry remain.
+Baseline: 5767b836d78146fdab7d786a1795f8c7.
+Delay: 7a617dc8b34b41f98b02725e04db4944.
+Comparison: 798f7f7331c6f1c2ae5768c4278ab6c7031e5b63375ff51a82873424ccef605b.
+Fresh viewer artifact: viewer/5da303a3f3cbf2c43a8b04d726e860a66d056a78e2a2617e43b6f96912ba22c2/viewer.json.
+New v2 publications freeze SQL, source versions, publisher Git/package/source hash;
+four native Delta dataset inputs are logged to each run. Older publications remain.
 
-The updated Composer viewer is left on Delay A4/Gate A4 close-up, Film mode on.
-Direct scrubbing, Play/Pause, paused-frame capture and the MLflow button passed.
-Cancellation during a blend now settles exact colours and audit identity together;
-pure regression tests cover it. Preserve the older unsaved New Stage window and
-other pre-existing viewer windows. Docker's eight services remain running.
+Fresh Composer files were exported to .local/omniverse-provenance and round-trip
+checked with OpenUSD. Existing .local/omniverse-test files and unsaved desktop
+stages were not overwritten. The current Kit launcher still uses omniverse-test:
+loading the fresh export into the desktop renderer is a remaining manual rehearsal
+step, not a claimed GPU pass for the new bundle. Historical M5 GPU evidence stands.
 
-## Next work
+## Azure session order
 
-1. Record the 60-second shot list. Native MLflow comparison was rechecked: both
-   explicit runs' complete peak_pax_A4 histories are visible by step, 126 vs 213.
-   Start at Baseline/Overview/minute 59, then Delay A4, close-up and MLflow.
-2. A fresh A4 close-up and paused frames were captured and logged. For new takes,
-   use Capture frame then collect-captures. Actual PNG ingestion is explicit;
-   CPU-only pushes produce heatmap previews immediately.
-3. For a fresh desktop artifact, run the documented export_viewer.py command.
-   For new data/thresholds, republish runs then prepare-viewer with explicit IDs.
-   Do not reset volumes or truncate tables to prepare a take.
+1. Record workspace URL/region, metastore, namespace, warehouse/experiment IDs and
+   actual App principal. Confirm serverless Python 3.11 and Apps availability.
+2. Configure CLI auth; validate dev with the real IDs and exact selected git_sha.
+3. Run notebook 11 disposable contracts in the approved catalog (no resets).
+4. Deployment requires explicit approval. Generate fresh cloud baseline/delay IDs;
+   publish complete replay sets and prepare-comparison with those exact IDs.
+5. Observe the real native comparison URL and configure the verified template in
+   app/app.yaml; cloud routing is deliberately unavailable until verified.
+6. Check SP grants/denied writes, Volume/MLflow retrieval, UC lineage and full replay.
 
-Export now keeps identical USD timestamps and refuses to overwrite locally
-edited immutable USD. A clean export needs only nine USD files for both entry
-compositions; replay minute data is in viewer.json. All historical scene files
-and screenshots remain in UC Volume/MLflow. Use a new --output folder for a fresh
-export when preserving model edits.
-
-Launch from airport .local/kit-app-template with the command in kit/README.md.
-Use ordinary mode (TWIN_CAPTURE_ALL unset) for filming; the all-frame preflight
-can leave a Kit SDK performance warning in the status bar after 100 screenshots.
-Desktop Kit uses its own runtime; Spark stays in Python 3.11 and RAPIDS is untouched.
-
-Evidence logs are in LocalUnityCatalog/.local: film-tests-final.log,
-film-publications-prepare.log, film-retry.log, film-capture-ingest-final.log,
-film-capture-retry.log and film-validate-viewer.log. Latest evidence uses the
-film-resume-* prefix (tests-final, export-bounded, relocated, captures, validate).
-Ignored desktop artifacts and
-captures are in airport .local/omniverse-test. Do not commit those generated files.
-
-Remote Databricks execution/authenticated validation and capture-inbox transfer
-remain UNTESTED. M4 remains incomplete. M5 App/forecaster/Kit livestream deferred.
+M4/M7e remain incomplete until real authenticated execution passes. CI is prepared
+but not activated remotely. PR #1 needs review after an authorized push of the new
+commits; the gateway changes need a separate scoped PR after approval. M6 and props
+stay on hold. Keep 365-day retention and no VACUUM/history truncation.
