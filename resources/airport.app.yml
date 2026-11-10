@@ -1,0 +1,55 @@
+# Dev App packaging only. Authenticated workspace validation remains UNVERIFIED
+# until Nick provides Databricks CLI credentials. No deployment is authorized.
+targets:
+  dev:
+    resources:
+      apps:
+        airport_twin_app:
+          name: airport-twin-app-${bundle.target}
+          description: Read-only Concourse A browser twin (audited replay).
+          source_code_path: ../app
+          resources:
+            - name: sql-warehouse
+              sql_warehouse:
+                id: ${var.warehouse_id}
+                permission: CAN_USE
+            - name: scenes-volume
+              uc_securable:
+                securable_type: VOLUME
+                securable_full_name: ${var.catalog}.${var.schema}.scenes
+                permission: READ_VOLUME
+            - name: assets-table
+              uc_securable:
+                securable_type: TABLE
+                securable_full_name: ${var.catalog}.${var.schema}.assets
+                permission: SELECT
+            - name: sensor-readings-table
+              uc_securable:
+                securable_type: TABLE
+                securable_full_name: ${var.catalog}.${var.schema}.sensor_readings
+                permission: SELECT
+            - name: thresholds-table
+              uc_securable:
+                securable_type: TABLE
+                securable_full_name: ${var.catalog}.${var.schema}.thresholds
+                permission: SELECT
+            - name: scene-pushes-table
+              uc_securable:
+                securable_type: TABLE
+                securable_full_name: ${var.catalog}.${var.schema}.scene_pushes
+                permission: SELECT
+            - name: gate-health-view
+              uc_securable:
+                securable_type: TABLE
+                securable_full_name: ${var.catalog}.${var.schema}.gate_health
+                permission: SELECT
+            - name: latest-state-view
+              uc_securable:
+                securable_type: TABLE
+                securable_full_name: ${var.catalog}.${var.schema}.latest_state
+                permission: SELECT
+            - name: status-colour-fn
+              uc_securable:
+                securable_type: FUNCTION
+                securable_full_name: ${var.catalog}.${var.schema}.status_colour
+                permission: EXECUTE

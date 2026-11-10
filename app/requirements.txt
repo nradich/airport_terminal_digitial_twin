@@ -5,3 +5,8 @@ fastapi==0.115.0
 uvicorn==0.30.6
 requests==2.34.2
 mlflow==3.17.0
+# Databricks SQL connector path (used only when TWIN_PLATFORM=databricks).
+# Local gateway mode never imports these modules. Cloud install of the shared
+# airport_twin wheel beside this file remains UNVERIFIED without workspace auth.
+databricks-sdk==0.163.0
+databricks-sql-connector==4.9.0
