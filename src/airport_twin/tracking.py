@@ -99,8 +99,20 @@ def assert_run(config: Config, run_id: str) -> Any:
 
 def run_url(config: Config, run_id: str) -> str:
     run = assert_run(config, run_id)
-    base = os.getenv("TWIN_MLFLOW_PUBLIC_URI", config.tracking_uri).rstrip("/")
-    return f"{base}/#/experiments/{run.info.experiment_id}/runs/{run_id}"
+    base = os.getenv("TWIN_MLFLOW_PUBLIC_URI")
+    if not base and config.platform == "databricks":
+        from databricks.sdk import WorkspaceClient
+
+        base = WorkspaceClient().config.host
+    if not base:
+        from urllib.parse import urlsplit, urlunsplit
+
+        parsed = urlsplit(config.tracking_uri)
+        host = "localhost:5000" if parsed.netloc == "mlflow:5000" else parsed.netloc
+        base = urlunsplit(parsed._replace(netloc=host))
+    base = base.rstrip("/")
+    route = "/ml/experiments" if config.platform == "databricks" else "/#/experiments"
+    return f"{base}{route}/{run.info.experiment_id}/runs/{run_id}"
 
 
 def log_scene(config: Config, manifest: dict) -> None:

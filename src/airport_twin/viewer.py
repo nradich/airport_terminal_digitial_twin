@@ -18,13 +18,25 @@ def load_bundle(path: Path) -> dict[str, Any]:
 def prepare_bundle(platform: Any, run_ids: list[str]) -> dict[str, Any]:
     """Resolve explicit runs through UC assets/scene_pushes and MLflow."""
     from airport_twin.bridge import UsdVolumeTransport
-    from airport_twin.presentation import asset_labels
+    from airport_twin.data import sql_text
+    from airport_twin.presentation import METRICS, asset_labels, legend_data, metric_values
     from airport_twin.scene import canonical, digest
-    from airport_twin.tracking import assert_run, client
+    from airport_twin.tracking import assert_run, client, run_url
+    from airport_twin.workflow import thresholds
 
     assets = [r.asDict() for r in platform.spark.table(platform.config.table("assets")).collect()]
     runs = []
     c = client(platform.config)
+    limits = thresholds(platform)
+    palette = [
+        r.asDict()
+        for r in platform.spark.sql(
+            "SELECT severity, CASE severity WHEN 0 THEN 'ok' "
+            "WHEN 1 THEN 'warn' ELSE 'crit' END status, "
+            + sql_text("colour.sql")
+            + " colour FROM VALUES (0), (1), (2) AS scores(severity)"
+        ).collect()
+    ]
     for run_id in run_ids:
         run = assert_run(platform.config, run_id)
         push_id = run.data.tags.get("twin.last_push_id")
@@ -36,12 +48,24 @@ def prepare_bundle(platform: Any, run_ids: list[str]) -> dict[str, Any]:
         manifest = json.loads((Path(audit["usd_path"]).parent / "manifest.json").read_text())
         if manifest["run_id"] != run_id or manifest["push_id"] != push_id:
             raise ValueError("Scene audit and publication disagree")
+        if sorted(tuple(row) for row in manifest["thresholds"]) != limits:
+            raise ValueError("Thresholds changed; republish the run before preparing the viewer")
+        histories = {
+            key: [{"step": m.step, "value": m.value} for m in c.get_metric_history(run_id, key)]
+            for key in METRICS
+        }
+        for step in range(int(run.data.params["minutes"])):
+            metric_values(histories, step)
         runs.append(
             {
                 "run_id": run_id,
                 "scenario": run.data.params["scenario"],
                 "publication": manifest,
                 "audit": audit,
+                "run_name": run.data.tags.get("mlflow.runName", run_id),
+                "run_url": run_url(platform.config, run_id),
+                "minutes": int(run.data.params["minutes"]),
+                "metric_history": histories,
             }
         )
     if {r["scenario"] for r in runs} != {"baseline", "delay_A4"} or len(runs) != 2:
@@ -52,6 +76,7 @@ def prepare_bundle(platform: Any, run_ids: list[str]) -> dict[str, Any]:
         "labels": asset_labels(assets),
         "runs": runs,
         "assets_version": platform.versions()["assets"],
+        "legend": legend_data(limits, palette),
     }
     payload = canonical(bundle)
     bundle_id = digest(payload)

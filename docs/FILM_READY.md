@@ -17,3 +17,17 @@ Live 00_setup → 06_prepare_viewer succeeded for the explicit filming runs
 The viewer JSON was published to the scenes Volume and both MLflow runs, then
 downloaded with complete USD composition trees. Desktop verification follows
 after the five implementation steps; cloud execution remains UNTESTED.
+
+## 2. Legend and run information
+
+Added a canonical SQL-derived palette, current governed thresholds, categorical
+severity explanations, MLflow run name/short ID, exact-step values for the four
+requested metrics, and a public run URL. Missing/duplicate/nonfinite metric steps
+fail rather than borrowing another step. The native panel has an Open in MLflow
+button and read-only copyable URL. Cloud links use the documented workspace
+/ml/experiments route; TWIN_MLFLOW_PUBLIC_URI can override public routing.
+
+Four pure presentation tests passed. Live notebook preparation read five threshold
+rows and all sixty steps of four metrics from each explicit MLflow run and
+published bundle 654111c6. It rejects a stale publication when current thresholds
+do not match its recorded snapshot. Desktop panel verification follows step 5.

@@ -10,7 +10,6 @@ from pathlib import Path
 import carb
 import omni.kit.app
 import omni.kit.async_engine
-import omni.ui as ui
 import omni.usd
 from omni.kit.viewport.utility import (
     frame_viewport_prims,
@@ -22,12 +21,13 @@ from pxr import Usd, UsdLux
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "src"), str(ROOT / "kit")]
 from airport_labels import AssetLabels  # noqa: E402
+from airport_panel import SnapshotPanel  # noqa: E402
 
 from airport_twin.viewer import load_bundle  # noqa: E402
 
 busy = False
 labels = None
-window = ui.Window("Airport snapshots", width=360, height=140)
+bundle = load_bundle(ROOT / ".local" / "omniverse-test" / "viewer.json")
 
 
 async def open_snapshot(scenario: str) -> None:
@@ -44,7 +44,7 @@ async def open_snapshot(scenario: str) -> None:
         if not path.is_file():
             raise FileNotFoundError(f"Export the scene bundle first: {path}")
         context = omni.usd.get_context()
-        bundle = load_bundle(ROOT / ".local" / "omniverse-test" / "viewer.json")
+        run = next(r for r in bundle["runs"] if r["scenario"] == scenario)
         success, error = await context.open_stage_async(str(path))
         if not success:
             raise RuntimeError(error)
@@ -75,6 +75,7 @@ async def open_snapshot(scenario: str) -> None:
         ):
             raise RuntimeError("Opening the viewer modified a published USD layer")
         status.text = f"{scenario} | A4: {severity} | 10 assets"
+        panel.update(run, run["minutes"] - 1)
         carb.log_info(f"AIRPORT_VIEWER_READY scenario={scenario} A4={severity} assets=10")
     except Exception as error:
         status.text = str(error)
@@ -83,18 +84,10 @@ async def open_snapshot(scenario: str) -> None:
         busy = False
 
 
-with window.frame:
-    with ui.VStack(spacing=8):
-        with ui.HStack(spacing=8):
-            ui.Button(
-                "Baseline",
-                clicked_fn=lambda: omni.kit.async_engine.run_coroutine(open_snapshot("baseline")),
-            )
-            ui.Button(
-                "Delay A4",
-                clicked_fn=lambda: omni.kit.async_engine.run_coroutine(open_snapshot("delay_A4")),
-            )
-        status = ui.Label("Preparing airport scene", word_wrap=True)
+panel = SnapshotPanel(
+    bundle["legend"], lambda scenario: omni.kit.async_engine.run_coroutine(open_snapshot(scenario))
+)
+status = panel.status
 
 
 async def start() -> None:
