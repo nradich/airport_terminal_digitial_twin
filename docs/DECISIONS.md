@@ -46,3 +46,17 @@
   originating MLflow runs. Desktop JSON files are artifact copies, not a side
   database. Kit uses CPU-only presentation/reader modules and native rendering;
   it never creates Spark or duplicates governed severity rules.
+# Film publication and capture lineage
+
+Every replay minute has its own content-addressed publication and scene_pushes
+row (run_id, scenario, step, USD path). The viewer artifact embeds those audit
+rows; the panel and session metadata use the selected minute's push, never an
+implicit latest run. Preparation preserves historical publications and adds
+nullable metadata columns without rewriting their immutable USD.
+
+CPU heatmaps are previews, not renderer screenshots. Actual Kit screenshots
+are staged with checksummed receipts and ingested by notebook 07, which validates
+UC lineage before storing Volume/MLflow artifacts and updating capture_path.
+This keeps Kit data access thin and avoids a GPU dependency in airport compute.
+The local preflight captures all 120 minute publications. Remote capture-inbox
+transfer remains UNTESTED. No new platform API or database is introduced.

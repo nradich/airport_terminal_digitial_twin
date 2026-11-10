@@ -16,7 +16,7 @@ class AssetLabels:
                         with sc.Transform(look_at=sc.Transform.LookAt.CAMERA):
                             with sc.Transform(scale_to=sc.Space.SCREEN):
                                 widget = sc.Widget(
-                                    width=max(54, len(row["text"]) * 12 + 20), height=34
+                                    width=max(108, len(row["text"]) * 22 + 40), height=60
                                 )
                                 with widget.frame:
                                     with ui.ZStack():
@@ -29,7 +29,7 @@ class AssetLabels:
                                         ui.Label(
                                             row["text"],
                                             alignment=ui.Alignment.CENTER,
-                                            style={"color": 0xFFFFFFFF, "font_size": 20},
+                                            style={"color": 0xFFFFFFFF, "font_size": 36},
                                         )
         viewport_window.viewport_api.add_scene_view(self.view)
 

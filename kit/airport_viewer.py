@@ -12,6 +12,7 @@ import carb
 import carb.settings
 import omni.kit.app
 import omni.kit.async_engine
+import omni.ui as ui
 import omni.usd
 from airport_labels import AssetLabels
 from airport_panel import SnapshotPanel
@@ -35,6 +36,7 @@ class AirportViewer:
         self.busy = False
         self.play_task = None
         self.previous_guides = {}
+        self.previous_windows = {}
         self.panel = SnapshotPanel(
             self.bundle["legend"],
             self.choose_scenario,
@@ -43,17 +45,22 @@ class AirportViewer:
             self.replay,
             self.camera,
             self.film_mode,
+            self.capture_frame,
         )
         self.labels = None
         self.checksums = {}
         omni.kit.async_engine.run_coroutine(self.start())
 
     def camera(self, name: str) -> None:
+        if self.busy:
+            return
         viewport = get_active_viewport()
         if viewport is not None and name in {"Overview", "A4CloseUp"}:
             viewport.camera_path = "/World/Film/" + name
 
     def film_mode(self, enabled: bool) -> None:
+        if self.busy:
+            return
         viewport = get_active_viewport()
         if viewport is None:
             return
@@ -73,6 +80,22 @@ class AirportViewer:
             if key not in self.previous_guides:
                 self.previous_guides[key] = bool(settings.get(key))
             settings.set(key, False if enabled else self.previous_guides[key])
+        for title in (
+            "Stage",
+            "Layer",
+            "Property",
+            "Content",
+            "Environments",
+            "Materials",
+            "Console",
+            "Configurator Samples",
+            "Render Settings",
+            "Variant Presenter",
+        ):
+            window = ui.Workspace.get_window(title)
+            if window:
+                self.previous_windows.setdefault(title, bool(window.visible))
+                window.visible = False if enabled else self.previous_windows[title]
 
     def choose_scenario(self, scenario: str) -> None:
         omni.kit.async_engine.run_coroutine(self.switch(scenario))
@@ -170,7 +193,7 @@ class AirportViewer:
                     "run_id": run["run_id"],
                     "scenario": run["scenario"],
                     "step": step,
-                    "source_push_id": run["audit"]["push_id"],
+                    "source_push_id": frame["push"]["push_id"],
                 }
             self.current, self.step = run, step
             self.panel.update(run, step)
@@ -207,6 +230,10 @@ class AirportViewer:
             self.labels = AssetLabels(get_active_viewport_window(), self.bundle["labels"])
             self.camera("Overview")
             self.film_mode(True)
+            panel = ui.Workspace.get_window("Airport snapshots")
+            viewport = ui.Workspace.get_window(get_active_viewport_window().title)
+            if panel and viewport:
+                panel.dock_in(viewport, ui.DockPosition.RIGHT, 0.26)
             await self.apply_frame(run, run["minutes"] - 1)
             if any(
                 hashlib.sha256(path.read_bytes()).hexdigest() != sha
@@ -214,6 +241,64 @@ class AirportViewer:
             ):
                 raise RuntimeError("Published scene layer changed")
             carb.log_info(f"AIRPORT_FILM_READY {scenario} labels=10 replay_steps={run['minutes']}")
+            if os.getenv("TWIN_CAPTURE_ALL") == "1":
+                await self.capture_all()
         except Exception as error:
             self.panel.status.text = str(error)
             carb.log_error(f"AIRPORT_FILM_ERROR {error}")
+
+    def capture_frame(self) -> None:
+        omni.kit.async_engine.run_coroutine(self.capture_current())
+
+    async def capture_current(self) -> None:
+        self.pause()
+        if self.busy or self.current is None:
+            return
+        self.busy = True
+        self.panel.slider.enabled = False
+        try:
+            await self.render_capture()
+        finally:
+            self.busy = False
+            self.panel.slider.enabled = True
+
+    async def render_capture(self) -> None:
+        from omni.kit.renderer.capture import acquire_renderer_capture_interface
+
+        from airport_twin.captures import capture_receipt
+
+        run, step = self.current, self.step
+        camera = str(get_active_viewport().camera_path).rsplit("/", 1)[-1]
+        # All display opinions must match the exact audited frame before rendering.
+        stage = omni.usd.get_context().get_stage()
+        for row in run["frames"][step]["states"]:
+            actual = (
+                UsdGeom.Gprim(stage.GetPrimAtPath(row["prim_path"])).GetDisplayColorAttr().Get()[0]
+            )
+            if any(
+                abs(a - b) > 1e-6 for a, b in zip(actual, linear_rgb(row["colour"]), strict=True)
+            ):
+                raise ValueError("Viewport differs from the audited frame")
+        for _ in range(5):
+            await omni.kit.app.get_app().next_update_async()
+        folder = self.root / ".local/omniverse-test/captures"
+        folder.mkdir(parents=True, exist_ok=True)
+        pending = folder / "pending.png"
+        renderer = acquire_renderer_capture_interface()
+        renderer.capture_next_frame_swapchain(str(pending))
+        for _ in range(3):
+            await omni.kit.app.get_app().next_update_async()
+        renderer.wait_async_capture()
+        receipt = capture_receipt(folder, pending, run, step, camera)
+        carb.log_info(f"AIRPORT_CAPTURE_OK {receipt}")
+
+    async def capture_all(self) -> None:
+        self.camera("Overview")
+        for run in self.bundle["runs"]:
+            for step in range(run["minutes"]):
+                await self.apply_frame(run, step)
+                if self.current != run or self.step != step:
+                    raise RuntimeError("Capture preflight did not reach its audited frame")
+                await self.capture_current()
+        await self.apply_frame(self.bundle["runs"][0], 59)
+        carb.log_info("AIRPORT_CAPTURE_ALL_OK frames=120")

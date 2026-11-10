@@ -30,3 +30,18 @@ parameters are implemented but cloud execution is UNTESTED. The local target
 supplies runner defaults only, with no emulated deployment API. Offline CLI-schema
 checks pass; authenticated validation failed for missing credentials. See
 PORTABILITY.md for wheelhouse evidence and the outstanding real-workspace proof.
+
+Film-ready data follows the same adapters: notebook 06 queries qualified UC
+tables/views, publishes replay layers and a viewer artifact to the scenes Volume
+and MLflow, and scripts/export_viewer.py downloads those artifacts. Kit consumes
+the files and shared pure presentation functions; it contains no table/MLflow
+client or Spark engine. Local URLs translate the tracking container hostname to
+localhost; Databricks URLs resolve the configured SDK workspace host.
+
+Actual PNG capture requires the desktop RTX renderer. Kit stages receipts only;
+notebook 07 verifies run/scenario/step/push identity and ingests files through
+VolumeTransport and the configured MLflow client. Local staging is a file inbox,
+not business-data storage. For cloud use, transfer that inbox to a UC Volume and
+set capture_dir; that transfer, remote notebook execution and real-workspace
+artifact routing are UNTESTED. CPU heatmap publication remains available without
+an RTX renderer. Film-ready local acceptance is in FILM_READY.md.

@@ -117,25 +117,22 @@ def run_url(config: Config, run_id: str) -> str:
 
 def log_scene(config: Config, manifest: dict) -> None:
     """Log a composable scene bundle, heatmap, and the exact push provenance."""
-    import tempfile
-
     from airport_twin.scene import canonical
-    from airport_twin.scene.heatmap import render_heatmap
 
     c = client(config)
     run_id, push_id = manifest["run_id"], manifest["push_id"]
-    run = assert_run(config, run_id)
+    assert_run(config, run_id)
     prefix = f"scene/runs/{run_id}/{push_id}"
     state = Path(manifest["usd_path"])
     base = state.parents[3] / "terminal_base.usda"
     c.log_artifact(run_id, str(base), "scene")
     c.log_artifact(run_id, str(state), prefix)
+    if manifest.get("story_relative"):
+        story = base.parent / manifest["story_relative"]
+        c.log_artifact(run_id, str(story), "scene/" + str(Path(manifest["story_relative"]).parent))
     c.log_dict(run_id, json.loads(canonical(manifest)), prefix + "/manifest.json")
     c.log_dict(run_id, {"rows": manifest["thresholds"]}, prefix + "/thresholds.json")
-    with tempfile.TemporaryDirectory() as folder:
-        png = Path(folder) / "heatmap.png"
-        render_heatmap(manifest, run.data.params["scenario"], png)
-        c.log_artifact(run_id, str(png), prefix)
+    c.log_artifact(run_id, str(state.parent / "heatmap.png"), prefix)
     c.log_metric(run_id, "scene_n_prims", manifest["n_prims"])
 
 
@@ -165,6 +162,12 @@ def validate_scene_artifacts(config: Config, run_id: str, push_ids: list[str]) -
                 raise AssertionError("Retrieved base differs from the publication")
             if manifest["run_id"] != run_id or manifest["push_id"] != push_id:
                 raise AssertionError("Retrieved manifest has wrong lineage")
+            if manifest.get("story_relative"):
+                if (
+                    digest((root / manifest["story_relative"]).read_bytes())
+                    != manifest["story_sha256"]
+                ):
+                    raise AssertionError("Retrieved story cameras differ")
             if (
                 json.loads((directory / "thresholds.json").read_text())["rows"]
                 != manifest["thresholds"]
@@ -173,3 +176,21 @@ def validate_scene_artifacts(config: Config, run_id: str, push_ids: list[str]) -
             verify_composition(state, manifest["states"])
             with Image.open(directory / "heatmap.png") as image:
                 image.verify()
+            if (
+                manifest.get("preview_sha256")
+                and digest((directory / "heatmap.png").read_bytes()) != manifest["preview_sha256"]
+            ):
+                raise AssertionError("Retrieved preview differs from the publication")
+            if (directory / "viewport.png").exists():
+                receipt = json.loads((directory / "viewport_receipt.json").read_text())
+                if any(
+                    receipt[key] != manifest[key]
+                    for key in ("run_id", "push_id", "scenario", "step", "usd_path")
+                ):
+                    raise AssertionError("Retrieved viewport has wrong publication lineage")
+                if digest((directory / "viewport.png").read_bytes()) != receipt["sha256"]:
+                    raise AssertionError("Retrieved viewport checksum differs")
+                with Image.open(directory / "viewport.png") as image:
+                    if image.size != (receipt["width"], receipt["height"]):
+                        raise AssertionError("Retrieved viewport dimensions differ")
+                    image.verify()

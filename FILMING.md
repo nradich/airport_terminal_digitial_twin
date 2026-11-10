@@ -8,8 +8,82 @@ peak is 126; the delayed peak is 213. Both runs have sixty metric steps.
 
 | Scenario | Verified run ID |
 | --- | --- |
-| baseline | fec2d8ef61b94c4590b2ac3f624aae22 |
-| delay_A4 | 8c9da58a294f4cbab4255799f79b34ec |
+| baseline | 5767b836d78146fdab7d786a1795f8c7 |
+| delay_A4 | 7a617dc8b34b41f98b02725e04db4944 |
+
+## 60-second take
+
+Use the Airport snapshots panel with Film mode checked. Select Overview and
+Baseline, then scrub to minute 59 before recording. The panel shows the exact
+run, minute, scene push and four MLflow metrics. Gate names come from UC assets;
+the legend shows current UC thresholds with inclusive warning/critical edges.
+
+| Time | Shot | Narration cue |
+| --- | --- | --- |
+| 0–10s | Overview, Baseline, minute 59 | Eight gates, two shared zones. A4 has departed; its final population is six. |
+| 10–20s | Click Delay A4; hold through the 1.5s ripple | The delayed flight leaves 213 passengers at A4. The warning spreads to security. |
+| 20–30s | Gate A4 close-up | Red is a governed critical state. Show run ID, push ID and threshold key. |
+| 30–42s | Overview; Replay, Pause, scrub minutes 40–59 | This replays minute readings from the selected run, with matching MLflow metric steps. |
+| 42–60s | Open in MLflow; compare the two explicit runs | Compare peak_pax_A4: 126 versus 213. Open the push's USD, viewport PNG and provenance. |
+
+The travelling highlight is a presentation transition. Final colours, statuses
+and displayed metrics always use the selected run and simulation minute. The
+simple boxes/cylinders are an operational diagram, not a detailed terminal model.
+
+## Prepare the film viewer
+
+Run in the adjacent LocalUnityCatalog checkout. These use the same source
+notebooks and platform-provided Python 3.11 Spark session as the main pipeline:
+
+```powershell
+docker compose -f compose.yaml -f compose.spark.yaml exec -T spark-notebooks uv run --no-sync airport-twin prepare-viewer --run-ids 5767b836d78146fdab7d786a1795f8c7 7a617dc8b34b41f98b02725e04db4944
+docker compose -f compose.yaml -f compose.spark.yaml exec -T spark-notebooks uv run --no-sync python scripts/export_viewer.py --run-id 5767b836d78146fdab7d786a1795f8c7
+```
+
+Notebook 06 reads UC assets, thresholds, readings and scene_pushes plus the two
+MLflow runs. It publishes sixty immutable, audited minute layers per run, each
+with a PNG heatmap, thresholds and manifest. Identical preparation reuses push
+identities. The viewer artifact is stored in the scenes Volume and both runs;
+the desktop files are downloaded artifact copies. There is no local database.
+
+Launch using [the Kit entry point](kit/README.md). The viewer never queries a
+new data service or creates Spark. It changes session opinions while replaying;
+published base and state files remain immutable. After editing thresholds,
+republish the explicit runs before preparing a new viewer artifact.
+
+## Actual viewport screenshots
+
+Capture frame stages a real Kit screenshot and a lineage receipt in the ignored
+.local/omniverse-test/captures folder. For a full preflight, launch with
+TWIN_CAPTURE_ALL=1: it renders all sixty minutes of both runs, then returns to
+Baseline minute 59. Screenshots include the panel and billboard labels.
+
+After capture, run from LocalUnityCatalog:
+
+```powershell
+docker compose -f compose.yaml -f compose.spark.yaml exec -T spark-notebooks uv run --no-sync airport-twin collect-captures --run-ids 5767b836d78146fdab7d786a1795f8c7 7a617dc8b34b41f98b02725e04db4944
+```
+
+Notebook 07 checks each PNG checksum and receipt against its scene_pushes row,
+stores it in the UC scenes Volume, logs it on the originating MLflow run, and
+updates capture_path. Under scene/runs/<run>/<push>, heatmap.png is the CPU
+preview; viewport.png is the actual Kit screenshot, with viewport_receipt.json.
+Camera-specific captures retain immutable paths. Notebook 07 refreshes the
+governed viewer artifact's audit metadata; repeat export_viewer.py to download
+it. Re-ingestion skips already committed receipts. Transfer of a desktop
+capture inbox to a real Databricks Volume is **UNTESTED**; notebook 07 accepts
+capture_dir as a native Volume path there.
+
+Executed end-to-end artifact verification from LocalUnityCatalog:
+
+```powershell
+docker compose -f compose.yaml -f compose.spark.yaml exec -T spark-notebooks uv run --no-sync airport-twin validate-viewer --run-ids 5767b836d78146fdab7d786a1795f8c7 7a617dc8b34b41f98b02725e04db4944
+```
+
+This retrieved and checked all 120 minute publications against UC audit rows,
+composed USD colours, immutable base checksums and actual Volume/MLflow PNGs.
+After capture preflight, relaunch without TWIN_CAPTURE_ALL for a clean take:
+Kit's capture plugin can show an SDK performance warning after 100 captures.
 
 ## Record the workflow
 

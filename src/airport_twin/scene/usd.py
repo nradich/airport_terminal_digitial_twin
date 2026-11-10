@@ -50,7 +50,9 @@ def base_bytes(assets: list[dict]) -> bytes:
     return stage.GetRootLayer().ExportToString().encode("utf-8")
 
 
-def override_bytes(states: list[dict], metadata: dict[str, str]) -> bytes:
+def override_bytes(
+    states: list[dict], metadata: dict[str, str], story_layer: str | None = None
+) -> bytes:
     stage = Usd.Stage.CreateInMemory()
     UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.z)
     UsdGeom.SetStageMetersPerUnit(stage, 1.0)
@@ -64,6 +66,8 @@ def override_bytes(states: list[dict], metadata: dict[str, str]) -> bytes:
     layer.customLayerData = metadata
     # Each publication lives at runs/<run>/<push>/, three levels below the base.
     layer.subLayerPaths = ["../../../terminal_base.usda"]
+    if story_layer:
+        layer.subLayerPaths.append("../../../" + story_layer)
     return layer.ExportToString().encode("utf-8")
 
 

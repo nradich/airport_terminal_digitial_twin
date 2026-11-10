@@ -12,6 +12,11 @@ M3 verified both scenarios, complete MLflow metric histories and downloadable
 USD/PNG/provenance artifacts, including native UI comparison.
 No remote deployment has been attempted.
 
+The film viewer adds governed floating labels, a threshold/run/metric panel,
+per-minute replay, an A4 ripple, saved story cameras and Film mode. See
+[the 60-second shot list and tested preparation commands](FILMING.md) and
+[implementation evidence](docs/FILM_READY.md). All new commits remain local.
+
 M4 packaging and offline schema checks pass. Authenticated bundle validation and
 real Databricks execution are **UNTESTED** because no credentials are configured;
 M4 remains incomplete. See [portability evidence](docs/PORTABILITY.md).

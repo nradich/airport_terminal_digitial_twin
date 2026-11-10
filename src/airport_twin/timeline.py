@@ -76,6 +76,7 @@ def assemble_frames(
                 "step": step,
                 "ts": stamp.isoformat(),
                 "states": sorted(states, key=lambda row: row["asset_id"]),
+                "metric_states": rows,
             }
         )
     return frames

@@ -60,3 +60,47 @@ light guides and performance HUD visibility use the installed Kit version's
 verified per-viewport settings. Turning Film mode off restores previous values.
 Ruff clean. Local camera-bundle preparation passed; final desktop inspection
 follows step 5. Remote rendering remains UNTESTED.
+
+## 5. Per-minute audit and actual screenshots
+
+Added additive scenario/step/preview_path/capture_path audit columns and migrated
+legacy final-frame metadata without rewriting their USD. All sixty minute frames
+per run now have their own verified, immutable USD, CPU heatmap and exact threshold/
+Delta-version/base/state manifest in the scenes Volume and originating MLflow run.
+The panel and session metadata select the minute's scene_pushes identity.
+
+Notebook 07 checks actual renderer PNG receipts against UC, stores captures in
+the Volume/MLflow, updates capture_path, and refreshes the governed viewer artifact.
+The desktop inbox is ignored staging. Notebook 08 retrieves all scene artifacts
+and verifies each minute's audit, composed USD, PNG checksum/dimensions and base.
+
+Actual local results:
+
+- Full pytest, including live SQL and MLflow: 33 passed in 45.57s; fourteen upstream
+  Matplotlib/Pyparsing deprecation warnings. Ruff clean.
+- Two renderer preflights each captured 120 frames. The second enlarged labels
+  and panel text and replaced unsupported threshold glyphs with readable ASCII.
+- Ingestion linked all 120 publications. Re-ingestion: captures=0, skipped=240,
+  publications=0. Refreshed bundle efcd249e8219ccedc89908ec2b7674125e7bc61406eee6e60ce7a22fe9e9a652.
+- validate-viewer: verified_publications=120, both explicit filming runs.
+- Baseline step-59 retry reused de41b2323d41 and its immutable files/audit identity.
+- Native Baseline/Delay switching, travelling colour transition, Overview/A4
+  close-up, replay through 0–59 and Film-mode pane restoration were exercised.
+  Final delayed A4 is critical; peak 213 versus baseline 126.
+- Last ordinary viewer launch reached RTX ready in 22.399s. GPU capture preflight
+  completed 120 frames by 54.080s including startup; simulator timing is unchanged.
+
+The first capture attempt exposed Sdf.Path/string conversion and was corrected.
+An initial native window activation timed out; a fresh viewer recovered. The
+original unsaved New Stage was preserved. Two older Composer windows remain open.
+The final desktop inspection was stopped by the user's physical Escape key;
+no further desktop inputs were sent. Direct scrub, play/pause and Open in MLflow
+button interaction on the final build remain to check tomorrow; their data paths
+and interpolation are tested. The native MLflow comparison was verified in prior
+work, not repeated during this final pass.
+
+Real Databricks execution, authenticated bundle validation, remote capture-inbox
+transfer and other Kit versions remain UNTESTED. Actual renderer PNG attachment
+uses the explicit capture/ingestion step; a CPU-only push logs its heatmap preview
+immediately. No Kit streaming, GPU compute in airport code, remote push or deploy
+was introduced. The local SQL-function fallback remains documented and active.

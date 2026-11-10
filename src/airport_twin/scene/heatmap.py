@@ -36,13 +36,16 @@ def render_heatmap(manifest: dict, scenario: str, destination: Path) -> None:
         patch.set_edgecolor("#CBD5E1")
         patch.set_linewidth(1.2)
         ax.add_patch(patch)
-        label = asset["display_name"].replace(" checkpoint", "").replace(" claim", "")
+        label = asset.get("asset_name") or asset["display_name"].replace(" checkpoint", "").replace(
+            " claim", ""
+        )
         if asset["asset_id"] in pax:
             label += f"\n{int(pax[asset['asset_id']])} pax"
         ax.text(x, y, label, ha="center", va="center", fontsize=10, weight="bold", color="#0F172A")
     ax.text(21, 0, "CONCOURSE A", color="#CBD5E1", ha="center", fontsize=15, weight="bold")
     ax.set_title(
-        f"AIRPORT TWIN  /  {scenario}\nFinal simulated minute · run {manifest['run_id'][:8]}",
+        f"AIRPORT TWIN  /  {scenario}\n"
+        f"Minute {manifest.get('step', 'final')} · run {manifest['run_id'][:8]}",
         color="white",
         fontsize=16,
         loc="left",

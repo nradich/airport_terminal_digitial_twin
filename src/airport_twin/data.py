@@ -90,6 +90,22 @@ def setup(platform: Platform) -> dict[str, Any]:
         platform.spark.sql(
             f"ALTER TABLE {platform.config.table('assets')} ADD COLUMNS (asset_name STRING)"
         )
+    push_columns = platform.spark.table(platform.config.table("scene_pushes")).columns
+    missing = [
+        f"{name} {kind}"
+        for name, kind in (
+            ("scenario", "STRING"),
+            ("step", "INT"),
+            ("preview_path", "STRING"),
+            ("capture_path", "STRING"),
+        )
+        if name not in push_columns
+    ]
+    if missing:
+        platform.spark.sql(
+            f"ALTER TABLE {platform.config.table('scene_pushes')} "
+            f"ADD COLUMNS ({', '.join(missing)})"
+        )
     merge_rows(
         platform,
         "assets",

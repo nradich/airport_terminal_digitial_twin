@@ -99,6 +99,9 @@ NVIDIA references: [File menu](https://docs.omniverse.nvidia.com/composer/latest
 [viewport navigation](https://docs.omniverse.nvidia.com/composer/latest/skills/viewport-nav.html),
 [Camera Light](https://docs.omniverse.nvidia.com/materials-and-rendering/latest/rtx-renderer_camera-light.html).
 
-This validates file publication and viewer interoperability. Automatic refresh
-from future scene pushes requires the next local Kit integration; the existing
-KitMessageTransport deliberately raises NotImplementedError.
+The film-ready entry point now uses a governed viewer artifact with labels,
+threshold/run details, sixty-minute replay, story cameras and Film mode. Follow
+[FILMING.md](../FILMING.md) to prepare/export the current artifact and capture
+actual viewport PNGs. Its frame-to-push lineage is read from UC scene_pushes.
+Future data changes require a new preparation/export; automatic Kit streaming
+remains deferred and KitMessageTransport raises NotImplementedError.

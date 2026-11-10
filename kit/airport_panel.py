@@ -14,13 +14,13 @@ def ui_colour(value: str) -> int:
 
 class SnapshotPanel:
     def __init__(
-        self, legend: dict, on_scenario, on_step, on_play, on_replay, on_camera, on_film
+        self, legend: dict, on_scenario, on_step, on_play, on_replay, on_camera, on_film, on_capture
     ) -> None:
         self.window = ui.Window("Airport snapshots", width=450, height=640)
         self.run_url = ""
         self.synchronizing = False
         with self.window.frame:
-            with ui.VStack(spacing=6):
+            with ui.VStack(spacing=6, style={"font_size": 16}):
                 with ui.HStack(spacing=6, height=32):
                     ui.Button("Baseline", clicked_fn=lambda: on_scenario("baseline"))
                     ui.Button("Delay A4", clicked_fn=lambda: on_scenario("delay_A4"))
@@ -41,9 +41,12 @@ class SnapshotPanel:
                         lambda model: on_film(model.get_value_as_bool())
                     )
                     ui.Label("Film mode")
-                self.title = ui.Label("Airport concourse", height=22)
+                self.title = ui.Label("Airport concourse", height=26, style={"font_size": 20})
                 self.identity = ui.Label("", height=20)
-                self.metric_labels = [ui.Label("", height=22) for _ in range(4)]
+                self.publication = ui.Label("", height=20)
+                self.metric_labels = [
+                    ui.Label("", height=24, style={"font_size": 18}) for _ in range(4)
+                ]
                 with ui.HStack(height=26, spacing=8):
                     for name in ("ok", "warn", "crit"):
                         with ui.HStack(spacing=5):
@@ -54,18 +57,31 @@ class SnapshotPanel:
                             )
                             ui.Label(name)
                 for row in legend["thresholds"]:
-                    ui.Label(row["text"], height=19, style={"font_size": 13})
-                ui.Label(" · ".join(legend["categorical"]), height=20, style={"font_size": 13})
+                    ui.Label(row["text"].replace("≥", ">="), height=21, style={"font_size": 14})
+                ui.Label(
+                    " · ".join(legend["categorical"]).replace("→", "->"),
+                    height=22,
+                    style={"font_size": 14},
+                )
                 ui.Button(
                     "Open in MLflow", height=28, clicked_fn=lambda: webbrowser.open(self.run_url)
                 )
                 self.url = ui.StringField(read_only=True, height=24)
                 self.status = ui.Label("Preparing scene", height=32, word_wrap=True)
+                ui.Button("Capture frame", height=26, clicked_fn=on_capture)
 
     def update(self, run: dict, step: int) -> None:
         data = run_panel_data(run, step)
         self.title.text = data["title"]
         self.identity.text = data["identity"]
+        push = run["frames"][step]["push"]
+        if (push["run_id"], push["scenario"], push["step"]) != (
+            run["run_id"],
+            run["scenario"],
+            step,
+        ):
+            raise ValueError("Frame has no matching governed publication")
+        self.publication.text = f"Scene push {push['push_id'][:12]} · minute {step}"
         for label, text in zip(self.metric_labels, data["metric_text"], strict=True):
             label.text = text
         self.run_url = data["url"]

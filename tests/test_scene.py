@@ -73,6 +73,9 @@ def test_retry_after_audit_failure(tmp_path, monkeypatch):
     states = [{**a, "colour": "#22C55E", "status": "ok"} for a in assets()]
     snapshot = {
         "run_id": "test",
+        "scenario": "baseline",
+        "step": 59,
+        "assets": assets(),
         "states": states,
         "metric_states": [],
         "thresholds": [],
