@@ -28,9 +28,26 @@ function showImage(reason:string){imageMode=true;const img=$('fallback') as HTML
 async function get(url:string,signal?:AbortSignal){const r=await fetch(url,{signal});const data=await r.json();if(!r.ok)throw Object.assign(new Error(data.message||data.error||r.statusText),{status:r.status,code:data.error});return data;}
 let request:AbortController|undefined;
 let replay:any,frames=new Map<number,any>(),step=0,playing=false,timer:number|undefined;
+let finishBlend:(()=>void)|undefined;
+async function ripple(frame:any,from:Map<string,THREE.Color>,epoch:number){
+ if(!renderer||imageMode||from.size!==10)return;
+ const origin=pub.labels.find((r:any)=>r.asset_id==='GATE_A4').anchor;
+ const distances=new Map<string,number>(pub.labels.map((r:any)=>[r.asset_id,Math.hypot(...r.anchor.map((v:number,i:number)=>v-origin[i]))]));
+ const maximum=Math.max(...distances.values())||1;const began=performance.now();
+ renderer.domElement.dataset.blending='true';$('play').textContent='Pause';
+ await new Promise<void>(resolve=>{
+  let done=false;
+  const finish=()=>{if(done)return;done=true;if(epoch===generation){paint(frame);renderer!.domElement.dataset.blending='false';$('play').textContent='Play';}if(finishBlend===finish)finishBlend=undefined;resolve();};finishBlend=finish;
+  function update(now:number){if(done)return;if(epoch!==generation){finish();return;}const elapsed=(now-began)/1500;if(elapsed>=1){finish();return;}
+   for(const row of frame.states){const t=Math.max(0,Math.min(1,(elapsed-.4*distances.get(row.asset_id)!/maximum)/.6)),eased=t*t*(3-2*t),mesh=assets.get(row.asset_id)!;
+    const colour=from.get(row.asset_id)!.clone().lerp(new THREE.Color(row.colour),eased),pulse=.18*Math.sin(Math.PI*t);colour.lerp(new THREE.Color(1,1,1),pulse);(mesh.material as THREE.MeshStandardMaterial).color.copy(colour);}
+   requestAnimationFrame(update);
+  }requestAnimationFrame(update);
+ });
+}
 let auditUnavailable=false;
 function imageFrame(minute:number){const frame=replay.images.find((f:any)=>f.step===minute);if(!frame)throw new Error('No publication for requested minute');step=minute;pub.audit={...pub.audit,push_id:frame.push_id,step};pub.image_type=frame.image_type;$('metrics').replaceChildren();$('health').replaceChildren();$('identity').textContent=`Run ${active.run_id}\nPush ${frame.push_id}\nSQL audit unavailable`;($('timeline') as HTMLInputElement).value=String(step);$('step').textContent=`Minute ${step} / ${active.minutes-1}`;showImage('AUDIT_VERSION_UNAVAILABLE · published images only');}
-function pause(){playing=false;clearTimeout(timer);$('play').textContent='Play';}
+function pause(){playing=false;clearTimeout(timer);finishBlend?.();$('play').textContent='Play';}
 function paint(frame:any){
  step=frame.step;pub.audit={...pub.audit,push_id:frame.push_id,step};pub.image_type=frame.image_type;
  for(const row of frame.states){const mesh=assets.get(row.asset_id);if(mesh){(mesh.material as THREE.MeshStandardMaterial).color.set(row.colour);mesh.userData.status=row.status;}}
@@ -48,9 +65,10 @@ async function pageAt(minute:number,epoch:number){
 }
 async function seek(minute:number){const epoch=generation;try{if(auditUnavailable){imageFrame(minute);return;}if(!frames.has(minute)){$('status').textContent='Loading audited page…';await pageAt(minute,epoch);}if(epoch!==generation)return;paint(frames.get(minute));$('status').textContent='Unity Catalog connected';}catch(error){if(epoch===generation){pause();$('status').textContent='Audit unavailable';if((error as any).code==='AUDIT_VERSION_UNAVAILABLE'){auditUnavailable=true;imageFrame(minute);}else $('message').textContent=String(error);}}}
 async function tick(){if(!playing)return;if(step>=active.minutes-1){pause();return;}await seek(step+1);if(playing)timer=window.setTimeout(tick,250);}
-$('play').onclick=()=>{if(playing){pause();return;}playing=true;$('play').textContent='Pause';if(step>=active.minutes-1)void seek(0).then(tick);else void tick();};
+$('play').onclick=()=>{if(playing||finishBlend){pause();return;}playing=true;$('play').textContent='Pause';if(step>=active.minutes-1)void seek(0).then(tick);else void tick();};
 $('timeline').addEventListener('input',()=>{pause();void seek(Number(($('timeline') as HTMLInputElement).value));});
 async function select(run:Run){
+ const previous=new Map([...assets].map(([id,mesh])=>[id,(mesh.material as THREE.MeshStandardMaterial).color.clone()]));
  pause();frames=new Map();auditUnavailable=false;
  const epoch=++generation;request?.abort();request=new AbortController();active=run;$('status').textContent='Querying Unity Catalog…';if(model)model.visible=false;$('identity').textContent=`Loading run ${run.run_id}`;$('health').replaceChildren();
  try{
@@ -63,6 +81,7 @@ async function select(run:Run){
   if(epoch!==generation)return;pub=publication;
   $('identity').textContent=`Run ${run.run_id}\nPush ${pub.audit.push_id.slice(0,12)}`;
   ($('mlflow') as HTMLAnchorElement).href=run.run_url;
+  document.querySelectorAll<HTMLElement>('.swatch').forEach((el,i)=>{el.style.background=pub.legend.colours[['ok','warn','crit'][i]];});
   $('thresholds').replaceChildren(...pub.legend.thresholds.map((row:any)=>{const p=document.createElement('div');p.textContent=row.text;return p;}));
   if(model){scene.remove(model);model.traverse(o=>{if(o instanceof CSS2DObject)o.element.remove();if(o instanceof THREE.Mesh){o.geometry.dispose();(o.material as THREE.Material).dispose();}});}assets.clear();
   if(renderer){try{
@@ -79,12 +98,14 @@ async function select(run:Run){
   if(imageMode)showImage('Image playback');
   $('health').replaceChildren(...rows.filter((r:State)=>r.asset_id.startsWith('GATE_')).map((r:State)=>{const tr=document.createElement('tr');const a=document.createElement('td'),b=document.createElement('td');a.textContent=r.asset_id.replace('GATE_','');b.textContent=r.status;b.style.color=r.colour;tr.append(a,b);return tr;}));
   $('message').textContent=imageMode?`${pub.image_type} · published minute ${pub.audit.step}`:`Live SQL state · A4 ${rows.find((r:State)=>r.asset_id==='GATE_A4').status}`;
-  $('status').textContent='Unity Catalog connected';
   ($('timeline') as HTMLInputElement).max=String(run.minutes-1);paint(initial);
+  await ripple(initial,previous,epoch);if(epoch!==generation)return;
+  $('status').textContent='Unity Catalog connected';
   if(run.minutes>60)void pageAt(0,epoch).catch(()=>{});
  }catch(error){if(epoch===generation){$('status').textContent='Data unavailable';if((error as any).code==='AUDIT_VERSION_UNAVAILABLE'&&pub){auditUnavailable=true;($('timeline') as HTMLInputElement).max=String(run.minutes-1);imageFrame(run.minutes-1);}else $('message').textContent=String(error);}}
 }
 try{renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.outputColorSpace=THREE.SRGBColorSpace;stage.prepend(renderer.domElement);renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();if(pub)showImage('Graphics context lost');});scene.add(new THREE.HemisphereLight(0xffffff,0x7a8591,3));const light=new THREE.DirectionalLight(0xffffff,2);light.position.set(20,60,30);scene.add(light);renderer.setAnimationLoop(()=>{if(camera&&!imageMode){controls.update();renderer!.render(scene,camera);labelRenderer.render(scene,camera);}});}catch{renderer=undefined;}
 $('overview').onclick=()=>{preset('Overview');resize();};$('closeup').onclick=()=>{preset('A4CloseUp');resize();};$('image').onclick=()=>{if(imageMode&&renderer&&model){imageMode=false;renderer.domElement.style.display='block';labelRenderer.domElement.style.display='block';$('fallback').style.display='none';$('image').textContent='Image playback';$('message').textContent='Live SQL state';}else if(pub)showImage('Selected');};new ResizeObserver(resize).observe(stage);
 get('/api/runs').then((runs:Run[])=>{const dropdown=$('run') as HTMLSelectElement;for(const r of runs){const option=new Option(`${r.scenario} · ${r.run_id.slice(0,8)}`,r.run_id);dropdown.add(option);}const initial=runs.find(r=>r.scenario==='delay_A4')||runs[0];if(!initial)throw new Error('Publish GLB-enabled runs first');dropdown.value=initial.run_id;dropdown.onchange=()=>select(runs.find(r=>r.run_id===dropdown.value)!);return select(initial);}).catch(error=>{$('message').textContent=String(error);});
+
 

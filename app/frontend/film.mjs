@@ -1,0 +1,26 @@
+// First filming walkthrough; deliberately excludes deferred pause/blend and resize tests.
+import {chromium,expect} from '@playwright/test';
+import {mkdir,writeFile} from 'node:fs/promises';
+await mkdir('.local/filming',{recursive:true});
+const browser=await chromium.launch({args:['--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+const page=await browser.newPage({viewport:{width:1920,height:1080}});
+await page.goto(process.env.TWIN_TEST_URL||'http://twin-app:8000');
+await expect(page.locator('#status')).toHaveText('Unity Catalog connected',{timeout:30000});
+await page.selectOption('#run','5767b836d78146fdab7d786a1795f8c7');
+await expect(page.locator('#metrics')).toContainText('peak_pax_A4: 126');
+await expect(page.locator('#status')).toHaveText('Unity Catalog connected',{timeout:30000});
+await page.screenshot({path:'.local/filming/browser-baseline.png'});
+await page.selectOption('#run','7a617dc8b34b41f98b02725e04db4944');
+await expect(page.locator('canvas')).toHaveAttribute('data-blending','true',{timeout:30000});
+await page.screenshot({path:'.local/filming/browser-ripple.png'});
+await expect(page.locator('#status')).toHaveText('Unity Catalog connected',{timeout:30000});
+await expect(page.locator('#metrics')).toContainText('peak_pax_A4: 213');
+await page.screenshot({path:'.local/filming/browser-delay.png'});
+await page.getByRole('button',{name:'Gate A4 close-up'}).click();
+await page.screenshot({path:'.local/filming/browser-a4.png'});
+const elapsed=await page.evaluate(()=>{const start=performance.now(),input=document.querySelector('#timeline');input.value='10';input.dispatchEvent(new Event('input'));return performance.now()-start;});
+await expect(page.locator('#step')).toHaveText('Minute 10 / 59');
+await page.screenshot({path:'.local/filming/browser-minute10.png'});
+const evidence={cached_scrub_ms:elapsed,identity:await page.locator('#identity').innerText(),metrics:await page.locator('#metrics').innerText(),renderer:'software Chromium; desktop GPU FPS not measured'};
+await writeFile('.local/filming/evidence.json',JSON.stringify(evidence,null,2));
+console.log(JSON.stringify(evidence));await browser.close();
