@@ -1,0 +1,10 @@
+[omni_usd_composer]
+application_name = "airport.composer"
+application_display_name = "Airport Twin Composer"
+version = "0.1.0"
+add_layers = "No"
+
+[omni_usd_composer.extensions.omni_usd_composer_setup]
+extension_name = "airport.setup"
+extension_display_name = "Airport Composer Setup"
+version = "0.1.0"

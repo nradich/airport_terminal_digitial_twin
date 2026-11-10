@@ -8,8 +8,9 @@ minute; playing the viewport timeline does not replay the sixty-minute run.
 ## Prepared files
 
 Verified local hardware: NVIDIA GeForce RTX 5060 Ti, 16,311 MiB VRAM,
-driver 610.88. Kit was not found in the standard local application locations.
-No Kit installation, driver change or license acceptance was performed.
+driver 610.88. USD Composer is now installed and launched using Kit 110.4.1.
+The desktop renderer initialized on this GPU with D3D12 / RTX Real-Time 2.0.
+No driver change was required.
 
 The ready-to-open folder is:
 
@@ -34,31 +35,42 @@ state/base checksums, all asset paths and composed colours passed. Source runs:
 | baseline.usda | 5767b836d78146fdab7d786a1795f8c7 | green, ok, 6 people |
 | delay_A4.usda | 7a617dc8b34b41f98b02725e04db4944 | red, crit, 213 people |
 
-## Install Composer if needed — UNTESTED here
+## Verified Composer installation
 
 NVIDIA provides USD Composer through its
 [Kit App Template](https://github.com/NVIDIA-Omniverse/kit-app-template), as
 described in the [Composer build guide](https://docs.omniverse.nvidia.com/composer/latest/how-to-build.html).
-Its documented Windows sequence is below. These setup/build/launch commands
-have not been executed on this desktop; SDK downloads and first-start shader
-compilation are separate from the airport's warm-run timing budget.
+The template checkout is pinned by the recorded source commit
+b8e9f2e4f2930d19e87e3702d4eeaf00d9846676. BUILD (RELEASE) SUCCEEDED in
+104.29 seconds. SDK downloads and first-start shader compilation are separate
+from the airport's warm-run timing budget.
 
 From the airport repository in PowerShell:
 
 ```powershell
-git clone https://github.com/NVIDIA-Omniverse/kit-app-template.git .local/kit-app-template
+git clone --depth 1 https://github.com/NVIDIA-Omniverse/kit-app-template.git .local/kit-app-template
+Copy-Item kit/composer-template.toml .local/kit-app-template/airport-composer.toml
 Set-Location .local/kit-app-template
-.\repo.bat template new
+.\repo.bat template replay airport-composer.toml
 .\repo.bat build
-.\repo.bat launch
+.\repo.bat launch -n airport.composer.kit
 ```
 
-In the template wizard choose Application → USD Composer. Follow its naming and
-setup-extension prompts, reviewing NVIDIA's license when prompted. The Kit app
-uses a separate desktop runtime; airport Spark notebooks remain CPU-only and
-the existing RAPIDS environment remains unchanged.
+These individual commands were executed. The saved playback uses NVIDIA's
+source-verified template replay format and explicit short app/extension names.
+An initial interactive attempt appended defaults and exceeded Windows' path
+limit; its partial output was preserved in source_failed_template. The corrected
+app is airport.composer with setup extension airport.setup.
 
-## Manual viewport acceptance — UNTESTED until Composer is opened
+NVIDIA's standard caches are C:\\packman-repo and
+%LOCALAPPDATA%\\ov\\data\\exts. The generated app lives beneath
+.local/kit-app-template. The Kit app uses a separate desktop runtime; airport
+Spark notebooks remain CPU-only and the existing RAPIDS environment is unchanged.
+
+## Airport viewport acceptance — pending scene loading
+
+The current default New Stage is the Composer environment, not the airport.
+The following checks remain UNTESTED until the prepared airport file is opened.
 
 1. In Composer choose File → Open and open the prepared baseline.usda.
 2. Select /World/Concourse_A in the Stage panel and press F to frame the scene.
