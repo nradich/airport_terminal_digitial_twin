@@ -54,6 +54,14 @@ Files API for Volume downloads (cloud access UNVERIFIED). Local files resolve
 through UC Volume metadata and a read-only /data mount. MLflow remains the only
 run/metric/artifact source. Audited replay pins Delta versions and thresholds;
 current snapshots remain an explicitly separate API. No local bundle deployment
-API is emulated. The separate platform adapter encodes restricted scalar bindings
-because OSS UC view expansion loses Spark named parameters; dev uses native binds.
-No VACUUM, log truncation or manual source-file deletion is allowed during audit.
+API is emulated. No VACUUM, log truncation or manual source-file deletion is
+allowed during audit.
+
+Local Spark UC-view binding workaround: stock UC OSS view expansion drops Spark
+named SQL parameters and raises UNBOUND_SQL_PARAMETER for `:name` binds against
+views such as latest_state/gate_health. The LocalUnityCatalog twin-query gateway
+adapter therefore encodes only registry-validated restricted scalars after
+parameter checks (strings may not contain quotes, backslashes or SQL punctuation).
+Canonical airport SQL templates stay unchanged. Databricks/dev uses the SQL
+Connector's native named binds. See LocalUnityCatalog docs/query-gateway.md;
+platform history gateway commit 718a7eb.

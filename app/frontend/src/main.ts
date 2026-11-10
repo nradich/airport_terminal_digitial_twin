@@ -91,7 +91,7 @@ async function select(run:Run){
    if(assets.size!==10)throw new Error('Expected ten stable asset nodes');
    for(const row of rows){const mesh=assets.get(row.asset_id)!;(mesh.material as THREE.MeshStandardMaterial).color.set(row.colour);mesh.userData.status=row.status;}
    renderer.domElement.dataset.assetStates=JSON.stringify([...assets].map(([id,mesh])=>({asset_id:id,status:mesh.userData.status,colour:'#'+(mesh.material as THREE.MeshStandardMaterial).color.getHexString()})));
-   for(const row of pub.labels){const element=document.createElement('div');element.className='label';element.textContent=row.text;const label=new CSS2DObject(element);label.position.copy(convert(row.anchor));model.add(label);}
+   for(const row of pub.labels){const element=document.createElement('div');element.className='label';element.textContent=row.text;const label=new CSS2DObject(element);label.center.set(0.5,1);label.position.copy(convert(row.anchor));model.add(label);}
    preset('Overview');resize();
   }catch(error){showImage(String(error));}}
   else showImage('WebGL unavailable');

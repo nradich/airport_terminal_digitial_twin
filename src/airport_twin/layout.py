@@ -14,7 +14,8 @@ class Shape:
 
 FLOOR = Shape((21.0, 0.0, -0.25), (60.0, 15.0, 0.5))
 CAMERAS = (
-    ("Overview", "Overview", (21, -45, 65), (21, 0, 1), "orthographic"),
+    # Clear 3/4 overview: elevated south-east corner, not a flat top-down.
+    ("Overview", "Overview", (58, -42, 38), (21, 0, 1), "orthographic"),
     ("A4CloseUp", "Gate A4 close-up", (53, -7, 18.5), (42, 10, 2), "perspective"),
 )
 

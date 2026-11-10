@@ -25,7 +25,7 @@ def test_labels_use_governed_names_and_roof_anchors():
     labels = {row["asset_id"]: row for row in asset_labels(assets)}
     assert len(labels) == 10
     assert labels["GATE_A4"]["text"] == "A4 — delayed flight"
-    assert labels["GATE_A4"]["anchor"] == [42.0, 10.0, 4.2]
+    assert labels["GATE_A4"]["anchor"] == [42.0, 10.0, 7.5]
     assert labels["SECURITY"]["text"] == "Security"
     assert labels["BAGGAGE"]["text"] == "Baggage"
     assert labels["GATE_A4"]["prim_path"] == "/World/Concourse_A/Gate_A4"

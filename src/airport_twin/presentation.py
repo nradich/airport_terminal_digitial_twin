@@ -92,7 +92,7 @@ def asset_labels(assets: list[dict]) -> list[dict]:
                 "asset_id": asset["asset_id"],
                 "text": name.strip(),
                 "prim_path": asset["prim_path"],
-                "anchor": [x, y, z + layout.size[2] / 2 + 1.2],
+                "anchor": [x, y, z + layout.size[2] / 2 + 4.5],
             }
         )
     return labels
