@@ -1,8 +1,9 @@
 # Local rehearsal and Azure readiness
 
-No remote push, PR creation or deployment. Azure execution remains UNVERIFIED.
-Airport working branch: cursor/m7-browser-twin-pr-41e6. The local gateway remains
-on the separate LocalUnityCatalog codex/airport-platform-prereqs branch.
+Airport and gateway pushes/PR updates were authorized on 2026-11-10. No Azure
+deployment. Azure execution remains UNVERIFIED. Airport working branch:
+cursor/m7-browser-twin-pr-41e6. Gateway review branch: codex/airport-query-gateway,
+based on the separate LocalUnityCatalog codex/airport-platform-prereqs branch.
 
 ## Verified implementation checkpoint — 2026-11-10
 
@@ -40,8 +41,8 @@ Git archive of 5caf847 in app/Builder.Dockerfile (Node 22, uv 0.10.2, Python 3.1
 The isolated staged App imported without Spark and its cached offline reinstall
 passed. A separately exported **98-wheel** closure installed into a fresh
 environment with Docker network disabled: OFFLINE_APP_IMPORT_OK.
-Gateway contracts passed **2/2**. Public GitHub CI activation is UNVERIFIED because
-the workflow has not been pushed; synthetic checks never connect to the desktop.
+Gateway contracts passed **2/2**. Public GitHub CI passed on the pushed Composer
+adapter commit cf2b814; synthetic checks never connect to the desktop.
 
 ## Explicit comparison
 
@@ -59,7 +60,7 @@ OAuth/grants, native comparison route and cloud WebGL/Volume behavior are UNVERI
 The dev comparison link stays unavailable until a verified workspace route template
 is configured; it never substitutes a guessed URL. See ../PREFLIGHT.md.
 M4/M7e remain incomplete until authenticated validation and deployed acceptance pass.
-M6 and external props remain on hold. Gateway review is local only; no PR was opened.
+M6 and external props remain on hold. Gateway review is now PR #9 in nradich/local_uc.
 
 ## Final rehearsal follow-up
 
@@ -78,8 +79,13 @@ The script was passed on stdin into the clean App; there is no source mount.
 
 Both new Composer exports composed to the recorded colours through OpenUSD.
 They are in a fresh .local/omniverse-provenance folder; existing edited exports and
-desktop windows were not replaced. Reloading that fresh bundle in RTX Composer
-remains a manual pre-filming check. New publication b2a3d60037327432d0610251b2d557b204a104d6039bf93fc0a35a1063070594
+desktop windows were not replaced. Fresh RTX Composer reload passed on 2026-11-10:
+Baseline Overview at minute 59 showed green A4 and peak 126; switching to Delay A4
+finished at red A4, peak 213, one critical gate, and push b2a3d6003732. The A4 camera
+and all ten labels were visually verified. Focused viewer/camera tests: **2 passed
+in 19.20s**. TWIN_VIEWER_DIRECTORY selected the fresh export without replacing edited
+exports. GPU FPS and transition timing were not benchmarked in this walkthrough.
+New publication b2a3d60037327432d0610251b2d557b204a104d6039bf93fc0a35a1063070594
 records publisher 5caf84733760f5a67508ba409199352034d58446 and frozen rule
 1c952bfaca272d5ca77737a2126dad41d4fa9dbf3938509cd4d75405b6e89558;
 the originating delayed run has **four native Delta dataset inputs**.
