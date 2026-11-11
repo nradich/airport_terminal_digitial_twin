@@ -1,5 +1,22 @@
 # Local rehearsal and Azure readiness
 
+## Post-reboot check — 2026-11-11
+
+Started Docker Desktop and restored existing volumes. Corrected NEXT_SESSION.md:
+ordinary restart uses `compose start`, preserving the workspace-specific MLflow
+prefix and notebook image. The earlier root-only `up` instruction recreated the
+base MLflow service without /mlflow; its workspace overlay was reapplied, restoring
+the existing /mlflow route and local-uc-demo:0.1.0 notebook runtime. No datasets,
+historical publications or environments were rebuilt.
+
+Actual App reads recovered all five saved runs, including the 120-minute baseline.
+The existing film.mjs walkthrough passed: baseline peak 126, delayed peak 213,
+both GLBs rendered, five-row provenance verified, native comparison opened with
+both intended runs, and cached minute-10 scrub measured 1.3 ms in software Chromium.
+Fresh screenshots/evidence are in app/frontend/.local/filming (ignored). The
+desktop browser also showed the audited minute-59 delayed run and 213 >= 180.
+Azure remains UNVERIFIED and no deployment was performed.
+
 Airport and gateway pushes/PR updates were authorized on 2026-11-10. No Azure
 deployment. Azure execution remains UNVERIFIED. Airport working branch:
 cursor/m7-browser-twin-pr-41e6. Gateway review branch: codex/airport-query-gateway,

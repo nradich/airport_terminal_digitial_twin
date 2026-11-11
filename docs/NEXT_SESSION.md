@@ -12,18 +12,34 @@ Unrelated platform files demo_audio.wav and docs/demo-plan.md remain untouched.
 ## Resume after the computer restarts
 
 Start Docker Desktop and wait for its Linux engine. From
-C:\Users\nicho\Desktop\Workspace\LocalUnityCatalog, restore the existing stack:
+C:\Users\nicho\Desktop\Workspace\LocalUnityCatalog, start the existing containers
+without recreating their workspace-specific runtime configuration:
 
 ```powershell
-docker compose -f compose.yaml -f compose.spark.yaml -f compose.twin-app.yaml up -d
+docker compose -f compose.yaml -f compose.spark.yaml -f compose.twin-app.yaml start
+docker start local-uc-gateway-1
 docker compose -f compose.yaml -f compose.spark.yaml -f compose.twin-app.yaml ps
 ```
 
-The full cold-boot sequence is UNTESTED after this handoff; the component build,
-startup and query-gateway restart commands have been exercised locally. Existing
-named Docker volumes hold Delta/UC, scenes and MLflow state. Keep those volumes;
+Post-reboot SQL reads, all five saved runs, both filming scenes, five-row gate
+provenance and native MLflow comparison passed on 2026-11-11. The commands above
+were exercised. Existing named Docker volumes hold Delta/UC, scenes and MLflow state. Keep those volumes;
 do not use down -v or prune them. Ignored .local/twin-app.env supplies the existing
 gateway secret and is already on disk; never commit its contents.
+
+The previous bare root `up -d` instruction was incomplete: recreating workspace
+services from root compose.yaml drops MLflow's /mlflow prefix and selects the base
+notebook image. On this desktop the existing workspace overlay is
+.local/worktrees/gpu-demo/compose.workspace.yaml. Recovery used the existing file:
+
+```powershell
+docker compose -f compose.yaml -f .local/worktrees/gpu-demo/compose.workspace.yaml up -d --no-deps mlflow notebooks
+```
+
+This restored the /mlflow route and the prior local-uc-demo:0.1.0 notebook image.
+No source environments or persistent data were rebuilt. Prefer `start` for the
+next ordinary reboot; a new-machine workspace recreation still requires its
+workspace overlay and is not covered by the airport-only compose files.
 
 Open http://127.0.0.1:8000/ for the App, http://localhost:3000 for the workspace,
 and http://localhost:5000/mlflow/ for MLflow. Allow Spark time to warm up before
