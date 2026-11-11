@@ -1,0 +1,25 @@
+# Databricks Apps runtime. Local Docker ignores this file and uses the Dockerfile CMD.
+command:
+  - python
+  - launch.py
+env:
+  - name: TWIN_PLATFORM
+    value: "databricks"
+  - name: TWIN_CATALOG
+    value: "dbx_twin"
+  - name: TWIN_SCHEMA
+    value: "airport"
+  - name: TWIN_EXPERIMENT
+    value: "/Shared/airport-twin"
+  - name: MLFLOW_TRACKING_URI
+    value: "databricks"
+  - name: MLFLOW_REGISTRY_URI
+    value: "databricks-uc"
+  - name: TWIN_WAREHOUSE_ID
+    valueFrom: sql-warehouse
+  - name: MLFLOW_EXPERIMENT_ID
+    valueFrom: mlflow-experiment
+  # Populate only after observing the real workspace's native comparison URL.
+  # Supported placeholders: {baseline_run_id}, {delay_run_id}, {experiment_id}.
+  - name: TWIN_MLFLOW_COMPARE_URL_TEMPLATE
+    value: ""

@@ -9,3 +9,8 @@ __pycache__/
 dist/
 build/
 .databricks/
+node_modules/
+app/static/
+app/wheels/
+test-results/
+playwright-report/

@@ -31,3 +31,24 @@ Implemented in platform commit c179221 and verified in the running browser.
 Source-notebook editing/execution/saving, bounded Delta and existing payment
 previews, two-run metric comparison, PNG viewing and governed view SQL display
 all passed. Limits and remaining preview risks are recorded in MILESTONES.md.
+
+## M7 App / cloud (open)
+
+Local twin-query gateway and browser App are verified on this desktop. Still
+requested before claiming M7e complete:
+
+- Authenticated `databricks bundle validate --strict -t dev` with a real
+  `warehouse_id` and App service-principal OAuth.
+- Least-privilege grants matching `resources/airport.app.yml` (warehouse
+  `CAN_USE`, scenes `READ_VOLUME`, table/view `SELECT`, `status_colour`
+  `EXECUTE`, experiment `CAN_READ`).
+- Optional lean non-Spark App base image (local still reuses `local-uc-spark`
+  without importing Spark).
+- Restricted-network install path and deployed WebGL confirmation.
+
+Current local implementation adds disposable notebook 11 contracts for the dev
+session, frozen-rule gate provenance and native MLflow dataset-input references.
+All local parity checks passed. The clean App runs without a desktop source mount;
+platform mount change is committed separately at 046b3e7. Cloud resource grants,
+comparison URL template and UC lineage need the actual workspace. No new platform
+PR or remote deployment was performed; review remains approval-gated.

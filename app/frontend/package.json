@@ -1,0 +1,8 @@
+{
+  "name": "airport-twin-viewer",
+  "private": true,
+  "type": "module",
+  "scripts": {"typecheck": "tsc --noEmit", "build": "node build.mjs", "test": "playwright test"},
+  "dependencies": {"three": "0.180.0"},
+  "devDependencies": {"@types/three": "0.180.0", "typescript": "5.8.3", "esbuild": "0.25.0", "gltf-validator": "2.0.0-dev.3.10", "@playwright/test": "1.51.1"}
+}

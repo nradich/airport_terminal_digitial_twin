@@ -143,10 +143,26 @@ def notebook_context(namespace: dict[str, Any]) -> tuple[Config, Platform, dict[
             ("minutes", "60"),
             ("run_id", ""),
             ("phase", "all"),
+            ("run_ids", ""),
+            ("step", "-1"),
+            ("capture_dir", f"/Volumes/{config.catalog}/{config.schema}/scenes/capture_inbox"),
         ):
             utils.widgets.text(key, default)
         params = {
             key: utils.widgets.get(key)
-            for key in ("scenario", "seed", "minutes", "run_id", "phase")
+            for key in (
+                "scenario",
+                "seed",
+                "minutes",
+                "run_id",
+                "phase",
+                "run_ids",
+                "step",
+                "capture_dir",
+            )
         }
+    if isinstance(params.get("run_ids"), str):
+        params["run_ids"] = [
+            value.strip() for value in params["run_ids"].split(",") if value.strip()
+        ]
     return config, Platform(config, namespace["spark"]), params

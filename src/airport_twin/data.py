@@ -27,6 +27,10 @@ READING_SCHEMA = (
     "asset_id STRING, ts TIMESTAMP, metric STRING, "
     "value_num DOUBLE, value_str STRING, run_id STRING"
 )
+ASSET_NAMES = {f"GATE_A{i}": f"A{i}" for i in range(1, 9)} | {
+    "SECURITY": "Security",
+    "BAGGAGE": "Baggage",
+}
 FLIGHT_SCHEMA = (
     "flight_id STRING, gate_id STRING, sched_dep TIMESTAMP, "
     "actual_dep TIMESTAMP, status STRING, run_id STRING"
@@ -41,6 +45,9 @@ def sql_text(name: str) -> str:
 
 
 def render(text: str, values: dict[str, str]) -> str:
+    if "namespace" in values:
+        values = {"assets_source": values["namespace"] + ".assets",
+                  "thresholds_source": values["namespace"] + ".thresholds", **values}
     for key, value in values.items():
         text = text.replace("{{" + key + "}}", value)
     if "{{" in text:
@@ -82,14 +89,63 @@ def setup(platform: Platform) -> dict[str, Any]:
     for statement in render(sql_text("tables.sql"), values).split(";"):
         if statement.strip():
             platform.spark.sql(statement)
+    if "asset_name" not in platform.spark.table(platform.config.table("assets")).columns:
+        platform.spark.sql(
+            f"ALTER TABLE {platform.config.table('assets')} ADD COLUMNS (asset_name STRING)"
+        )
+    push_columns = platform.spark.table(platform.config.table("scene_pushes")).columns
+    missing = [
+        f"{name} {kind}"
+        for name, kind in (
+            ("scenario", "STRING"),
+            ("step", "INT"),
+            ("preview_path", "STRING"),
+            ("capture_path", "STRING"),
+            ("glb_path", "STRING"),
+            ("glb_sha256", "STRING"),
+        )
+        if name not in push_columns
+    ]
+    if missing:
+        platform.spark.sql(
+            f"ALTER TABLE {platform.config.table('scene_pushes')} "
+            f"ADD COLUMNS ({', '.join(missing)})"
+        )
+    for name in ("assets", "flights", "sensor_readings", "thresholds", "scene_pushes"):
+        properties = {
+            r.key: r.value
+            for r in platform.spark.sql(
+                f"SHOW TBLPROPERTIES {platform.config.table(name)}"
+            ).collect()
+        }
+        retention = {
+            key: "interval 365 days"
+            for key in ("delta.deletedFileRetentionDuration", "delta.logRetentionDuration")
+        }
+        if any(properties.get(key) != value for key, value in retention.items()):
+            assignments = ", ".join(f"'{key}'='{value}'" for key, value in retention.items())
+            platform.spark.sql(
+                f"ALTER TABLE {platform.config.table(name)} SET TBLPROPERTIES ({assignments})"
+            )
     merge_rows(
         platform,
         "assets",
-        ASSETS,
-        "asset_id STRING, asset_type STRING, zone STRING, prim_path STRING, display_name STRING",
+        [(*row, ASSET_NAMES[row[0]]) for row in ASSETS],
+        "asset_id STRING, asset_type STRING, zone STRING, prim_path STRING, "
+        "display_name STRING, asset_name STRING",
         ["asset_id"],
     )
-    actual = {tuple(r) for r in platform.spark.table(platform.config.table("assets")).collect()}
+    names = " ".join(f"WHEN '{key}' THEN '{value}'" for key, value in ASSET_NAMES.items())
+    platform.spark.sql(
+        f"UPDATE {platform.config.table('assets')} SET asset_name = CASE asset_id {names} END "
+        "WHERE asset_name IS NULL"
+    )
+    actual = {
+        tuple(r)
+        for r in platform.spark.table(platform.config.table("assets"))
+        .select("asset_id", "asset_type", "zone", "prim_path", "display_name")
+        .collect()
+    }
     if actual != set(ASSETS):
         raise ValueError("Existing assets differ from the v1 layout; explicit migration required")
     merge_rows(
@@ -125,7 +181,14 @@ def setup(platform: Platform) -> dict[str, Any]:
             raise AssertionError("Qualified colour function failed boundary check")
         mode = "uc_function"
         colour = f"{platform.config.namespace}.status_colour(severity, 1D, 2D)"
-    values = {"namespace": platform.config.namespace, "colour_expression": colour}
+    values = {
+        "namespace": platform.config.namespace,
+        "colour_expression": colour,
+        "time_partition": "",
+        "time_column": "",
+        "readings": platform.config.table("sensor_readings"),
+        "state_source": platform.config.table("latest_state"),
+    }
     for view in ("latest_state", "gate_health"):
         platform.ensure_view(view, render(sql_text(view + ".sql"), values))
     LOG.info("SETUP_OK namespace=%s colour_logic=%s", platform.config.namespace, mode)

@@ -15,6 +15,8 @@ from mlflow.entities import Metric, Param
 
 from airport_twin.config import Config, SimulationConfig
 
+_LOGGED_INPUTS: set[tuple] = set()
+
 
 def git_sha() -> str:
     if value := os.getenv("TWIN_GIT_SHA"):
@@ -99,31 +101,63 @@ def assert_run(config: Config, run_id: str) -> Any:
 
 def run_url(config: Config, run_id: str) -> str:
     run = assert_run(config, run_id)
-    base = os.getenv("TWIN_MLFLOW_PUBLIC_URI", config.tracking_uri).rstrip("/")
-    return f"{base}/#/experiments/{run.info.experiment_id}/runs/{run_id}"
+    base = os.getenv("TWIN_MLFLOW_PUBLIC_URI")
+    if not base and config.platform == "databricks":
+        from databricks.sdk import WorkspaceClient
+
+        base = WorkspaceClient().config.host
+    if not base:
+        from urllib.parse import urlsplit, urlunsplit
+
+        parsed = urlsplit(config.tracking_uri)
+        host = "localhost:5000" if parsed.netloc == "mlflow:5000" else parsed.netloc
+        base = urlunsplit(parsed._replace(netloc=host))
+    base = base.rstrip("/")
+    route = "/ml/experiments" if config.platform == "databricks" else "/#/experiments"
+    return f"{base}{route}/{run.info.experiment_id}/runs/{run_id}"
 
 
 def log_scene(config: Config, manifest: dict) -> None:
     """Log a composable scene bundle, heatmap, and the exact push provenance."""
-    import tempfile
-
     from airport_twin.scene import canonical
-    from airport_twin.scene.heatmap import render_heatmap
 
     c = client(config)
     run_id, push_id = manifest["run_id"], manifest["push_id"]
-    run = assert_run(config, run_id)
+    assert_run(config, run_id)
+    import hashlib
+
+    from mlflow.entities import Dataset, DatasetInput, InputTag
+
+    for table, version in manifest["delta_versions"].items():
+        key = (config.tracking_uri, run_id, table, version)
+        if key not in _LOGGED_INPUTS:
+            source = json.dumps(
+                {"delta_table_name": config.table(table), "delta_table_version": version},
+                sort_keys=True,
+            )
+            dataset = Dataset(
+                config.table(table),
+                hashlib.sha256(source.encode()).hexdigest()[:32],
+                "delta_table",
+                source,
+            )
+            c.log_inputs(
+                run_id, [DatasetInput(dataset, [InputTag("mlflow.data.context", "scene_source")])]
+            )
+            _LOGGED_INPUTS.add(key)
     prefix = f"scene/runs/{run_id}/{push_id}"
     state = Path(manifest["usd_path"])
     base = state.parents[3] / "terminal_base.usda"
     c.log_artifact(run_id, str(base), "scene")
     c.log_artifact(run_id, str(state), prefix)
+    if manifest.get("glb_path"):
+        c.log_artifact(run_id, str(base.parent / manifest["glb_path"]), prefix)
+    if manifest.get("story_relative"):
+        story = base.parent / manifest["story_relative"]
+        c.log_artifact(run_id, str(story), "scene/" + str(Path(manifest["story_relative"]).parent))
     c.log_dict(run_id, json.loads(canonical(manifest)), prefix + "/manifest.json")
     c.log_dict(run_id, {"rows": manifest["thresholds"]}, prefix + "/thresholds.json")
-    with tempfile.TemporaryDirectory() as folder:
-        png = Path(folder) / "heatmap.png"
-        render_heatmap(manifest, run.data.params["scenario"], png)
-        c.log_artifact(run_id, str(png), prefix)
+    c.log_artifact(run_id, str(state.parent / "heatmap.png"), prefix)
     c.log_metric(run_id, "scene_n_prims", manifest["n_prims"])
 
 
@@ -154,6 +188,17 @@ def validate_scene_artifacts(config: Config, run_id: str, push_ids: list[str]) -
             if manifest["run_id"] != run_id or manifest["push_id"] != push_id:
                 raise AssertionError("Retrieved manifest has wrong lineage")
             if (
+                manifest.get("glb_sha256")
+                and digest((directory / "terminal.glb").read_bytes()) != manifest["glb_sha256"]
+            ):
+                raise AssertionError("Retrieved GLB checksum differs")
+            if manifest.get("story_relative"):
+                if (
+                    digest((root / manifest["story_relative"]).read_bytes())
+                    != manifest["story_sha256"]
+                ):
+                    raise AssertionError("Retrieved story cameras differ")
+            if (
                 json.loads((directory / "thresholds.json").read_text())["rows"]
                 != manifest["thresholds"]
             ):
@@ -161,3 +206,21 @@ def validate_scene_artifacts(config: Config, run_id: str, push_ids: list[str]) -
             verify_composition(state, manifest["states"])
             with Image.open(directory / "heatmap.png") as image:
                 image.verify()
+            if (
+                manifest.get("preview_sha256")
+                and digest((directory / "heatmap.png").read_bytes()) != manifest["preview_sha256"]
+            ):
+                raise AssertionError("Retrieved preview differs from the publication")
+            if (directory / "viewport.png").exists():
+                receipt = json.loads((directory / "viewport_receipt.json").read_text())
+                if any(
+                    receipt[key] != manifest[key]
+                    for key in ("run_id", "push_id", "scenario", "step", "usd_path")
+                ):
+                    raise AssertionError("Retrieved viewport has wrong publication lineage")
+                if digest((directory / "viewport.png").read_bytes()) != receipt["sha256"]:
+                    raise AssertionError("Retrieved viewport checksum differs")
+                with Image.open(directory / "viewport.png") as image:
+                    if image.size != (receipt["width"], receipt["height"]):
+                        raise AssertionError("Retrieved viewport dimensions differ")
+                    image.verify()

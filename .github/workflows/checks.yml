@@ -1,0 +1,35 @@
+name: Airport checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  cpu-and-contracts:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: pip install uv==0.10.2
+      - run: uv sync --locked --group dev
+      - run: uv run ruff check src tests notebooks scripts app/server app/launch.py kit
+      - run: uv run pytest -q -m 'not integration'
+      - run: uv run python scripts/package_app.py --target dev
+      - name: Clean artifact imports without Spark
+        run: |
+          uv sync --project dist/app --locked --no-dev
+          cd dist/app
+          .venv/bin/python -c "import airport_twin; from server.main import app; import importlib.util; assert importlib.util.find_spec('pyspark') is None"
+      - run: uv run python tests/build_contract_fixture.py
+      - run: node validate-glb.mjs .local/contracts/terminal.glb
+        working-directory: app/frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: app/frontend
+      - name: Synthetic browser contracts (not live integration)
+        run: |
+          python -m http.server 8000 --directory app/static > /tmp/airport-static.log 2>&1 &
+          cd app/frontend
+          TWIN_TEST_URL=http://localhost:8000 npm test -- --project contracts

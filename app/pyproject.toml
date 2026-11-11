@@ -1,0 +1,8 @@
+[project]
+name = "airport-twin-app"
+version = "0.1.0"
+requires-python = ">=3.11,<3.12"
+dependencies = ["airport-twin==0.1.0", "fastapi==0.115.0", "uvicorn==0.30.6", "databricks-sdk==0.163.0", "databricks-sql-connector==4.9.0"]
+
+[tool.uv.sources]
+airport-twin = { path = "wheels/airport_twin-0.1.0-py3-none-any.whl" }

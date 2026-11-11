@@ -8,8 +8,121 @@ peak is 126; the delayed peak is 213. Both runs have sixty metric steps.
 
 | Scenario | Verified run ID |
 | --- | --- |
-| baseline | fec2d8ef61b94c4590b2ac3f624aae22 |
-| delay_A4 | 8c9da58a294f4cbab4255799f79b34ec |
+| baseline | 5767b836d78146fdab7d786a1795f8c7 |
+| delay_A4 | 7a617dc8b34b41f98b02725e04db4944 |
+
+## 60-second take
+
+Use the Airport snapshots panel with Film mode checked. Select Overview and
+Baseline, then scrub to minute 59 before recording. The panel shows the exact
+run, minute, scene push and four MLflow metrics. Gate names come from UC assets;
+the legend shows current UC thresholds with inclusive warning/critical edges.
+
+Direct scrubbing, Play/Pause, paused-frame capture and Open in MLflow were
+exercised on 2026-11-10. Pausing during a blend settles the target minute's exact
+colours and audit identity together. Click the scrubber track to jump to a minute;
+Play resumes from it. The native MLflow peak_pax_A4 chart showed both complete
+0–59 histories, with peaks 126 (baseline) and 213 (delay_A4).
+
+| Time | Shot | Narration cue |
+| --- | --- | --- |
+| 0–10s | Overview, Baseline, minute 59 | Eight gates, two shared zones. A4 has departed; its final population is six. |
+| 10–20s | Click Delay A4; hold through the 1.5s ripple | The delayed flight leaves 213 passengers at A4. The warning spreads to security. |
+| 20–30s | Gate A4 close-up | Red is a governed critical state. Show run ID, push ID and threshold key. |
+| 30–42s | Overview; Replay, Pause, scrub minutes 40–59 | This replays minute readings from the selected run, with matching MLflow metric steps. |
+| 42–60s | Open in MLflow; compare the two explicit runs | Compare peak_pax_A4: 126 versus 213. Open the push's USD, viewport PNG and provenance. |
+
+The travelling highlight is a presentation transition. Final colours, statuses
+and displayed metrics always use the selected run and simulation minute. The
+simple boxes/cylinders are an operational diagram, not a detailed terminal model.
+
+## Browser twin take (same governed data)
+
+Narrative: **same governed Delta data, two renderers.** Omniverse Composer remains
+the RTX hero path above; the browser App at http://localhost:8000 is the audited
+replay companion. Default mode is Audited replay (not the early Current state slice).
+
+| Beat | Shot | Check |
+| --- | --- | --- |
+| 1 | UC readings + a publication with USD/GLB | Tables/views/Volume; GLB path on `scene_pushes` |
+| 2 | Composer Baseline at an explicit run/minute | Run `5767b836…`, minute 59 |
+| 3 | Browser viewer at the same run/minute; orbit | Overview, ten labels, orbit |
+| 4 | Delay A4 in both renderers | Critical A4 and 213 passengers |
+| 5 | Matching earlier replay minute + audit identity | Scrub to minute 10; push ID updates |
+| 6 | Native MLflow comparison | Baseline peak 126 vs delayed peak 213 |
+
+Browser controls exercised locally: orbit, Overview/A4 cameras, scenario switch
+with 1.5s A4 ripple, Play/Pause, scrub, exact-step metrics, MLflow link. Pausing
+during the blend settles exact colours and audit identity together (Playwright).
+Canvas resize tracks the stage. First filming stills live under
+`app/frontend/.local/filming/` via `app/frontend/film.mjs`. Deployed-WebGL and
+desktop GPU FPS remain UNVERIFIED.
+
+## Prepare the film viewer
+
+Run in the adjacent LocalUnityCatalog checkout. These use the same source
+notebooks and platform-provided Python 3.11 Spark session as the main pipeline:
+
+```powershell
+docker compose -f compose.yaml -f compose.spark.yaml exec -T spark-notebooks uv run --no-sync airport-twin prepare-viewer --run-ids 5767b836d78146fdab7d786a1795f8c7 7a617dc8b34b41f98b02725e04db4944
+docker compose -f compose.yaml -f compose.spark.yaml exec -T spark-notebooks uv run --no-sync python scripts/export_viewer.py --run-id 5767b836d78146fdab7d786a1795f8c7
+```
+
+Notebook 06 reads UC assets, thresholds, readings and scene_pushes plus the two
+MLflow runs. It publishes sixty immutable, audited minute layers per run, each
+with a PNG heatmap, thresholds and manifest. Identical preparation reuses push
+identities. The viewer artifact is stored in the scenes Volume and both runs;
+the desktop files are downloaded artifact copies. There is no local database.
+
+Export downloads the active entry stages' composition files and provenance;
+historical publications stay in the Volume/MLflow. All replay minute data travels
+in viewer.json. Identical exports preserve USD timestamps to avoid Composer's
+base-file refresh notice. Export refuses to overwrite locally edited immutable
+USD; use a fresh --output directory when preserving modeling edits. A clean
+relocated export with nine USD files reopened both ten-asset stages successfully.
+
+MLflow's wall-clock run duration includes later scene publication sessions.
+Use simulation_elapsed_s when discussing simulator runtime, and Step for the
+simulated minute on comparison charts.
+
+Launch using [the Kit entry point](kit/README.md). The viewer never queries a
+new data service or creates Spark. It changes session opinions while replaying;
+published base and state files remain immutable. After editing thresholds,
+republish the explicit runs before preparing a new viewer artifact.
+
+## Actual viewport screenshots
+
+Capture frame stages a real Kit screenshot and a lineage receipt in the ignored
+.local/omniverse-test/captures folder. For a full preflight, launch with
+TWIN_CAPTURE_ALL=1: it renders all sixty minutes of both runs, then returns to
+Baseline minute 59. Screenshots include the panel and billboard labels.
+
+After capture, run from LocalUnityCatalog:
+
+```powershell
+docker compose -f compose.yaml -f compose.spark.yaml exec -T spark-notebooks uv run --no-sync airport-twin collect-captures --run-ids 5767b836d78146fdab7d786a1795f8c7 7a617dc8b34b41f98b02725e04db4944
+```
+
+Notebook 07 checks each PNG checksum and receipt against its scene_pushes row,
+stores it in the UC scenes Volume, logs it on the originating MLflow run, and
+updates capture_path. Under scene/runs/<run>/<push>, heatmap.png is the CPU
+preview; viewport.png is the actual Kit screenshot, with viewport_receipt.json.
+Camera-specific captures retain immutable paths. Notebook 07 refreshes the
+governed viewer artifact's audit metadata; repeat export_viewer.py to download
+it. Re-ingestion skips already committed receipts. Transfer of a desktop
+capture inbox to a real Databricks Volume is **UNTESTED**; notebook 07 accepts
+capture_dir as a native Volume path there.
+
+Executed end-to-end artifact verification from LocalUnityCatalog:
+
+```powershell
+docker compose -f compose.yaml -f compose.spark.yaml exec -T spark-notebooks uv run --no-sync airport-twin validate-viewer --run-ids 5767b836d78146fdab7d786a1795f8c7 7a617dc8b34b41f98b02725e04db4944
+```
+
+This retrieved and checked all 120 minute publications against UC audit rows,
+composed USD colours, immutable base checksums and actual Volume/MLflow PNGs.
+After capture preflight, relaunch without TWIN_CAPTURE_ALL for a clean take:
+Kit's capture plugin can show an SDK performance warning after 100 captures.
 
 ## Record the workflow
 
@@ -85,3 +198,24 @@ The overlay points Workspace Notebooks at the airport service on 8889. The
 original RAPIDS notebook service remains unchanged at
 http://localhost:8888/jupyter/. The base platform configuration continues to
 target it when the airport overlay is not applied.
+# Current M7 rehearsal: same governed data, two renderers
+
+Use the four-minute storyboard in [BACKLOG_PLAN.md](docs/BACKLOG_PLAN.md) and
+the one-page [PREFLIGHT.md](PREFLIGHT.md). Start with native MLflow comparison,
+then Composer baseline, browser at the same minute, delayed A4, and gate provenance.
+Close with **Compare in MLflow**, the exact two selected runs and 126 versus 213.
+
+The gate panel shows the explanation, five sensor rows, colour rule, run/push and
+source versions. Keep Details collapsed; hashes, frozen SQL and publisher identity
+are available there. Gate geometry and the accessible gate-table buttons both work.
+The App defaults only to a unique explicitly published filming pair; otherwise
+select a run. It never guesses a latest comparison pair.
+
+Current publications use manifest v2 and frozen rule identity. Legacy files remain
+unchanged and show their metadata limitations. New scene-source Delta datasets
+are logged as native MLflow inputs. Application provenance is distinct from native
+UC lineage, which remains UNVERIFIED until the Azure session.
+
+The updated browser walkthrough is `app/frontend/film.mjs`; its recorded stills
+include browser-provenance.png and mlflow-comparison.png. See
+[REHEARSAL.md](docs/REHEARSAL.md) for actual evidence and unresolved cloud checks.

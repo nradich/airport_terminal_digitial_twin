@@ -6,14 +6,9 @@ from pathlib import Path
 
 from pxr import Gf, Sdf, Usd, UsdGeom
 
+from airport_twin.layout import FLOOR
+from airport_twin.presentation import linear_rgb as linear_rgb
 from airport_twin.scene.layout import shape
-
-
-def linear_rgb(colour: str) -> tuple[float, float, float]:
-    if len(colour) != 7 or not colour.startswith("#"):
-        raise ValueError("Expected #RRGGBB colour")
-    values = [int(colour[i : i + 2], 16) / 255 for i in (1, 3, 5)]
-    return tuple(v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4 for v in values)
 
 
 def base_bytes(assets: list[dict]) -> bytes:
@@ -25,8 +20,8 @@ def base_bytes(assets: list[dict]) -> bytes:
     UsdGeom.SetStageMetersPerUnit(stage, 1.0)
     floor = UsdGeom.Cube.Define(stage, "/World/Concourse_A/Floor")
     floor.CreateSizeAttr(1.0)
-    floor.AddTranslateOp().Set((21.0, 0.0, -0.25))
-    floor.AddScaleOp().Set((60.0, 15.0, 0.5))
+    floor.AddTranslateOp().Set(FLOOR.position)
+    floor.AddScaleOp().Set(FLOOR.size)
     floor.CreateDisplayColorAttr([Gf.Vec3f(0.12, 0.15, 0.19)])
     seen = set()
     for asset in sorted(assets, key=lambda a: a["asset_id"]):
@@ -56,7 +51,9 @@ def base_bytes(assets: list[dict]) -> bytes:
     return stage.GetRootLayer().ExportToString().encode("utf-8")
 
 
-def override_bytes(states: list[dict], metadata: dict[str, str]) -> bytes:
+def override_bytes(
+    states: list[dict], metadata: dict[str, str], story_layer: str | None = None
+) -> bytes:
     stage = Usd.Stage.CreateInMemory()
     UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.z)
     UsdGeom.SetStageMetersPerUnit(stage, 1.0)
@@ -70,6 +67,8 @@ def override_bytes(states: list[dict], metadata: dict[str, str]) -> bytes:
     layer.customLayerData = metadata
     # Each publication lives at runs/<run>/<push>/, three levels below the base.
     layer.subLayerPaths = ["../../../terminal_base.usda"]
+    if story_layer:
+        layer.subLayerPaths.append("../../../" + story_layer)
     return layer.ExportToString().encode("utf-8")
 
 

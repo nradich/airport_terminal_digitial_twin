@@ -73,6 +73,9 @@ def test_retry_after_audit_failure(tmp_path, monkeypatch):
     states = [{**a, "colour": "#22C55E", "status": "ok"} for a in assets()]
     snapshot = {
         "run_id": "test",
+        "scenario": "baseline",
+        "step": 59,
+        "assets": assets(),
         "states": states,
         "metric_states": [],
         "thresholds": [],
@@ -109,3 +112,8 @@ def test_retry_after_audit_failure(tmp_path, monkeypatch):
     assert first["push_id"] == second["push_id"]
     assert path.read_bytes() == original
     assert len(audit) == 1
+    snapshot["delta_versions"] = {"sensor_readings": 3}
+    changed = scene.push_scene(platform, "test")
+    assert changed["push_id"] != first["push_id"]
+    assert path.read_bytes() == original
+    assert len(audit) == 2

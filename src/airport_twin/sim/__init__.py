@@ -115,7 +115,7 @@ def simulate(
             n_crit += int(numeric_crit)
             gate_values.append(pax)
         queue = float(round(15 + sum(gate_values) * 0.055 + rng.uniform(-3, 3)))
-        belt = round(min(100, 38 + minute * 0.65 + rng.uniform(-3, 3)), 3)
+        belt = float(round(min(100, 38 + minute * 0.65 + rng.uniform(-3, 3)), 3))
         readings.extend(
             [
                 ("SECURITY", ts, "queue_len", queue, None, run_id),
