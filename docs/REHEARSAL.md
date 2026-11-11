@@ -1,5 +1,28 @@
 # Local rehearsal and Azure readiness
 
+## Replay selection correction — 2026-11-11
+
+Legacy baseline 958ff1aae8ab43bba748a8ea122d6c95 has 60 publications covering
+steps 0–59, but only 59 share flights v16 / readings v15; one records flights v15 /
+readings v14. No complete group shares one publication identity. Historical
+snapshots were preserved; they were not rewritten or combined across versions.
+
+The App now reports replay availability from the shared complete-set check and
+disables incomplete runs in the selector. Labels include duration (60/120 min).
+Run changes invalidate the old replay/publication, stop playback and clear old
+metrics, sensors, source versions, images and geometry state. Missing-set and
+REPLAY_NOT_FOUND errors disable playback and give an actionable message. Asset
+bundle URLs include a content hash to avoid stale JavaScript after a refresh.
+
+CPU tests: 54 passed, 2 integration tests deselected, 14 upstream deprecation
+warnings in 34.00s. Ruff and TypeScript/build passed. The five isolated browser
+contracts passed, including empty replay sets, missing IDs, stale evidence,
+disabled controls and recovery to a valid run. Final combined browser suite:
+**15 passed (1.1m)** (ten live tests and five synthetic contracts). Actual /api/runs
+reports 958ff1aa unavailable; the filming baseline/delay and 120-minute baseline
+remain available. Desktop UI loaded baseline 7cf727f3 at Minute 119 / 119, with
+ten labels and five sensor rows. Screenshot: app/frontend/.local/filming/browser-120-replay.png.
+
 ## Post-reboot check — 2026-11-11
 
 Started Docker Desktop and restored existing volumes. Corrected NEXT_SESSION.md:

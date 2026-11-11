@@ -1,7 +1,8 @@
 # Restart handoff — 2026-11-11
 
-Airport: cursor/m7-browser-twin-pr-41e6, latest implementation 8dcd733 (American
-spelling in visible UI). Airport PR #1 was updated and GitHub CI passed:
+Airport: cursor/m7-browser-twin-pr-41e6. Visible UI uses American spelling and
+now includes replay-availability checks, duration labels and clean failure recovery.
+Airport PR #1 contains the updates; consult its latest checks before merging:
 https://github.com/nradich/airport_terminal_digitial_twin/pull/1.
 Platform checkout: codex/airport-platform-prereqs, latest 046b3e7. The same three
 gateway/App commits were pushed as codex/airport-query-gateway, with green CI:
@@ -65,6 +66,11 @@ for missing audited history.
 Baseline: 5767b836d78146fdab7d786a1795f8c7.
 Delay: 7a617dc8b34b41f98b02725e04db4944.
 These filming runs are 60 minutes, steps 0–59; peak A4 populations are 126/213.
+The selector now includes durations and disables runs without a complete coherent
+audited replay. Legacy baseline 958ff1aa has mixed source versions (59 snapshots
+under one identity and one under another); do not merge or overwrite those audit
+records. It remains visible as replay unavailable. Failed selections clear old
+evidence and disable playback rather than using a previous run's replay ID.
 The 120-minute test run is baseline 7cf727f3ceee423594894181a9574fdb (the last
 dropdown option, steps 0–119). Its complete audited replay was verified available
 on 2026-11-11. It has legacy publication metadata, not the newer frozen-rule/

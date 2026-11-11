@@ -75,7 +75,7 @@ dependencies = [
     { name = "usd-core" },
 ]
 wheels = [
-    { filename = "airport_twin-0.1.0-py3-none-any.whl", hash = "sha256:923c6f672aa23a7b2f435ee793123995c1cd4dabd78567302226897b1b0e77a4" },
+    { filename = "airport_twin-0.1.0-py3-none-any.whl", hash = "sha256:4a1a99407c21fbce40fca2fcb9f11fe682ec78b1fb573184f59f2492b7e7f028" },
 ]
 
 [package.metadata]

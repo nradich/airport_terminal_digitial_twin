@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from airport_twin import app_replay
+from airport_twin import app_data, app_replay, comparison
 from airport_twin.config import Config, SimulationConfig
 from airport_twin.data import THRESHOLDS
 from airport_twin.queries import build_query
@@ -39,6 +39,37 @@ def test_replay_asset_identity_ignores_spark_collect_order(monkeypatch):
         publication=publications.__getitem__,
     )
     assert len(app_replay.replay_sets(data, "run")) == 1
+
+
+@pytest.mark.parametrize("mixed_versions", [False, True])
+def test_run_selector_requires_one_complete_source_identity(monkeypatch, mixed_versions):
+    run = SimpleNamespace(data=SimpleNamespace(
+        params={"minutes": "2", "start_utc": "2026-11-09T22:00:00"}, tags={}
+    ))
+    monkeypatch.setattr(app_replay, "assert_run", lambda *_: run)
+    monkeypatch.setattr(app_data, "assert_run", lambda *_: run)
+    monkeypatch.setattr(app_data, "run_url", lambda *_: "http://mlflow.invalid/run")
+    monkeypatch.setattr(comparison, "run_comparison", lambda *_: {})
+    publications = {
+        str(step): {"manifest": {
+            "step": step,
+            "delta_versions": {"sensor_readings": 14 + int(mixed_versions and step == 1)},
+            "thresholds": [], "base_sha256": "base", "glb_sha256": "glb", "assets": [],
+        }} for step in range(2)
+    }
+    data = app_data.TwinData(Config(), None, None)
+    monkeypatch.setattr(data, "pushes", lambda: [
+        {"run_id": "run", "scenario": "baseline", "push_id": str(i)} for i in range(2)
+    ])
+    monkeypatch.setattr(data, "publication", publications.__getitem__)
+    listed = data.runs()[0]
+    assert listed["replay_available"] is not mixed_versions
+    if mixed_versions:
+        assert "matching source versions" in listed["replay_unavailable_reason"]
+        with pytest.raises(ReadError, match="REPLAY_NOT_FOUND"):
+            app_replay.timeline(data, "run", "previous-run-replay", 0, 2)
+    else:
+        assert listed["replay_unavailable_reason"] is None
 
 
 def test_long_simulation_matches_spark_double_contract():

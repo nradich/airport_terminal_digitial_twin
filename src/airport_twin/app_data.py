@@ -26,12 +26,14 @@ class TwinData:
         return self._push_cache[1]
 
     def runs(self) -> list[dict]:
+        from airport_twin.app_replay import replay_sets
         from airport_twin.comparison import run_comparison
 
         result = {}
         for push in self.pushes():
             if push["run_id"] not in result:
                 run = assert_run(self.config, push["run_id"])
+                available = bool(replay_sets(self, push["run_id"]))
                 result[push["run_id"]] = {
                     "run_id": push["run_id"],
                     "scenario": push["scenario"],
@@ -40,6 +42,11 @@ class TwinData:
                     "push_id": push["push_id"],
                     "run_url": run_url(self.config, push["run_id"]),
                     "comparison": run_comparison(self, push["run_id"]),
+                    "replay_available": available,
+                    "replay_unavailable_reason": None if available else (
+                        "No complete audited replay with matching source versions, "
+                        "thresholds, rules and geometry."
+                    ),
                 }
         return list(result.values())
 

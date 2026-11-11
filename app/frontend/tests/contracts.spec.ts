@@ -10,7 +10,7 @@ test.beforeEach(async({page})=>{
   const states=metadata.labels.map((label:any)=>({asset_id:label.asset_id,status:delayed&&label.asset_id==='GATE_A4'?'crit':'ok',colour:delayed&&label.asset_id==='GATE_A4'?'#EF4444':'#22C55E',pax_count:delayed?213:6}));
   const pair=`http://mlflow.invalid/#/compare-runs?runs=${encodeURIComponent(JSON.stringify(ids))}`;
   let data:any;
-  if(url.pathname==='/api/runs')data=ids.map((id,i)=>({run_id:id,scenario:i?'delay_A4':'baseline',run_name:'Contract fixture',minutes:120,push_id:'push',run_url:'http://mlflow.invalid/run/'+id,comparison:{comparison_id:"contract",url:pair,reason:null}}));
+  if(url.pathname==='/api/runs')data=[...ids.map((id,i)=>({run_id:id,scenario:i?'delay_A4':'baseline',run_name:'Contract fixture',minutes:120,push_id:'push',run_url:'http://mlflow.invalid/run/'+id,replay_available:true,comparison:{comparison_id:"contract",url:pair,reason:null}})),{run_id:'c'.repeat(32),scenario:'baseline',minutes:60,replay_available:false,replay_unavailable_reason:'Mixed source versions',comparison:{url:null}}];
   else if(url.pathname.endsWith('/replays'))data=[{replay_id:'replay',images:Array.from({length:120},(_,step)=>({step,push_id:'push'+step,image_type:'Heatmap preview'}))}];
   else if(url.pathname.endsWith('/timeline')){const start=Number(url.searchParams.get('start_step')),end=Number(url.searchParams.get('end_step'));if(start===0)await new Promise(resolve=>setTimeout(resolve,600));data={end_step:end,frames:Array.from({length:end-start},(_,i)=>({step:start+i,push_id:'push'+(start+i),states,metrics:{peak_pax_A4:delayed?213:126},image_type:'Heatmap preview'}))};}
   else if(url.pathname.endsWith('/model.glb'))return route.fulfill({contentType:'model/gltf-binary',body:await readFile('.local/contracts/terminal.glb')});
@@ -39,4 +39,41 @@ test('older same-run page cannot override the final scrub selection',async({page
  await expect(page.locator('#step')).toHaveText('Minute 100 / 119');
  await page.waitForTimeout(1000);
  await expect(page.locator('#step')).toHaveText('Minute 100 / 119');
+});
+
+test('selector shows durations and disables incomplete audited runs',async({page})=>{
+ await page.goto('/');await expect(page.locator('#status')).toHaveText('Unity Catalog connected');
+ await expect(page.locator('#run option').filter({hasText:'120 min'})).toHaveCount(2);
+ await expect(page.locator('#run option').filter({hasText:'replay unavailable'})).toBeDisabled();
+});
+
+test('missing replay clears old evidence and prevents requests with the previous replay',async({page})=>{
+ await page.goto('/');await expect(page.locator('#status')).toHaveText('Unity Catalog connected');
+ await expect(page.locator('#sensors tr')).toHaveCount(5);
+ const requests:string[]=[];
+ page.on('request',r=>{if(r.url().includes('/timeline?'))requests.push(r.url());});
+ await page.route(`**/${ids[0]}/replays`,async route=>{
+  await new Promise(resolve=>setTimeout(resolve,300));await route.fulfill({json:[]});
+ });
+ await page.selectOption('#run',ids[0]);
+ await expect(page.locator('#play')).toBeDisabled();await expect(page.locator('#timeline')).toBeDisabled();
+ await expect(page.locator('#status')).toHaveText('Audit unavailable');
+ await expect(page.locator('#message')).toContainText('no complete audited replay');
+ for(const id of ['metrics','health','sensors','verification','rule','source-versions','audit-details','step'])await expect(page.locator('#'+id)).toBeEmpty();
+ await expect(page.locator('.label:visible')).toHaveCount(0);
+ await expect(page.locator('#fallback')).toBeHidden();
+ await expect(page.locator('canvas')).toHaveAttribute('data-asset-states','[]');
+ expect(requests).toHaveLength(0);
+ await page.selectOption('#run',ids[1]);await expect(page.locator('#status')).toHaveText('Unity Catalog connected');
+ await expect(page.locator('#sensors tr')).toHaveCount(5);await expect(page.locator('#play')).toBeEnabled();
+});
+
+test('missing replay id has an actionable error without retaining old evidence',async({page})=>{
+ await page.goto('/');await expect(page.locator('#status')).toHaveText('Unity Catalog connected');
+ await page.route(`**/${ids[0]}/timeline?**`,r=>r.fulfill({status:404,json:{error:'REPLAY_NOT_FOUND'}}));
+ await page.selectOption('#run',ids[0]);
+ await expect(page.locator('#message')).toContainText('choose another available run');
+ await expect(page.locator('#status')).toHaveText('Audit unavailable');
+ await expect(page.locator('#metrics')).toBeEmpty();await expect(page.locator('#source-versions')).toBeEmpty();
+ await expect(page.locator('#play')).toBeDisabled();
 });
