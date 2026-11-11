@@ -6,6 +6,44 @@ import {CSS2DRenderer,CSS2DObject} from 'three/addons/renderers/CSS2DRenderer.js
 type Run={run_id:string;scenario:string;run_name:string;minutes:number;push_id:string;run_url:string;replay_available:boolean;replay_unavailable_reason?:string;comparison:{url:string|null;reason:string|null;comparison_id?:string}};
 type State={asset_id:string;status:string;colour:string};
 const $=(id:string)=>document.getElementById(id)!;
+const workspace = new URLSearchParams(location.search).get('workspace') === '1';
+if(workspace){
+ document.documentElement.classList.add('workspace-embedded');
+ window.addEventListener('keydown',event=>{
+  if(event.key==='Escape')parent.postMessage({type:'twin-exit-expanded'},location.origin);
+ });
+}
+const apiPrefix = workspace ? '/app-services/airport-twin' : '';
+const initialState = new URLSearchParams(location.search);
+function persistState() {
+ if (!active) return;
+ const state = new URLSearchParams({run:active.run_id,gate:selectedGate,minute:String(step)});
+ history.replaceState(null,'','?' + state + (workspace ? '&workspace=1' : ''));
+ if (workspace) parent.postMessage({type:'twin-state',search:state.toString()},location.origin);
+}
+function evidenceLink(id:string, raw:string) {
+ const link=$(id) as HTMLAnchorElement;
+ link.href=raw;link.onclick=null;
+ if (!workspace) return;
+ try {
+  const url=new URL(raw), hash=url.hash.slice(1);
+  const query=new URLSearchParams(hash.split('?')[1] || '');
+  const params=new URLSearchParams();
+  if(id==='compare') {
+   const runs=JSON.parse(query.get('runs') || '[]');
+   const experiments=JSON.parse(query.get('experiments') || '[]');
+   if(runs.length!==2 || !runs.every((r:any)=>typeof r==='string')) throw new Error('Comparison unavailable');
+   params.set('compare',runs.join(','));
+   if(experiments[0]) params.set('experiment',experiments[0]);
+  } else {
+   const match=hash.match(/experiments\/([^/]+)\/runs\/([^/]+)/);
+   if(!match) throw new Error('Run link unavailable');
+   params.set('experiment',match[1]);params.set('run',match[2]);
+  }
+  link.href='/experiments?'+params;
+  link.onclick=event=>{event.preventDefault();persistState();parent.postMessage({type:'twin-experiment',url:link.getAttribute('href')},location.origin);};
+ } catch { link.removeAttribute('href');$('comparison-note').textContent='Experiment link unavailable for this run.'; }
+}
 const stage=$('stage');
 const scene=new THREE.Scene(); scene.background=new THREE.Color('#0b1522');
 let renderer:THREE.WebGLRenderer|undefined;
@@ -24,14 +62,14 @@ function preset(name:string){
  controls?.dispose();controls=new OrbitControls(camera,renderer.domElement);controls.target.copy(convert(data[3]));controls.enableDamping=true;controls.update();
 }
 function resize(){if(!renderer||!camera)return;const w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h);labelRenderer.setSize(w,h);if(camera instanceof THREE.PerspectiveCamera)camera.aspect=w/h;else{camera.top=45*h/w;camera.bottom=-camera.top;}camera.updateProjectionMatrix();}
-function showImage(reason:string){imageMode=true;const img=$('fallback') as HTMLImageElement;img.onerror=()=>{$('message').textContent='Frame unavailable for this publication';};img.src=`/api/publications/${pub.audit.push_id}/frame.png`;img.style.display='block';renderer?.domElement.style.setProperty('display','none');labelRenderer.domElement.style.display='none';$('image').textContent='3D viewer';$('message').textContent=`${pub.image_type} · ${reason}`;}
-async function get(url:string,signal?:AbortSignal){const r=await fetch(url,{signal});const data=await r.json();if(!r.ok)throw Object.assign(new Error(data.message||data.error||r.statusText),{status:r.status,code:data.error});return data;}
+function showImage(reason:string){imageMode=true;const img=$('fallback') as HTMLImageElement;img.onerror=()=>{$('message').textContent='Frame unavailable for this publication';};img.src=apiPrefix+`/api/publications/${pub.audit.push_id}/frame.png`;img.style.display='block';renderer?.domElement.style.setProperty('display','none');labelRenderer.domElement.style.display='none';$('image').textContent='3D viewer';$('message').textContent=`${pub.image_type} · ${reason}`;}
+async function get(url:string,signal?:AbortSignal){const r=await fetch(apiPrefix+url,{signal});const data=await r.json();if(!r.ok)throw Object.assign(new Error(data.message||data.error||r.statusText),{status:r.status,code:data.error});return data;}
 let request:AbortController|undefined;
 let seekGeneration=0;
 let selectedGate='GATE_A4',provenanceGeneration=0;
 async function inspectGate(assetId:string,reveal=false){
  if(reveal)$('provenance').scrollIntoView({block:'start',behavior:'smooth'});
- selectedGate=assetId;const ticket=++provenanceGeneration,epoch=generation,push=pub?.audit.push_id;
+ selectedGate=assetId;persistState();const ticket=++provenanceGeneration,epoch=generation,push=pub?.audit.push_id;
  if(!push)return;$('gate-title').textContent=assetId.replace('GATE_','')+' · Why this color?';$('explanation').textContent='Checking publication evidence…';for(const id of ['sensors','verification','rule','source-versions','audit-details'])$(id).replaceChildren();
  try{const data=await get(`/api/publications/${push}/assets/${assetId}/provenance`,request?.signal);
   if(ticket!==provenanceGeneration||epoch!==generation||push!==pub?.audit.push_id)return;
@@ -60,7 +98,7 @@ async function ripple(frame:any,from:Map<string,THREE.Color>,epoch:number){
  });
 }
 let auditUnavailable=false;
-function imageFrame(minute:number){const frame=replay.images.find((f:any)=>f.step===minute);if(!frame)throw new Error('No publication for requested minute');clearEvidence();assets.clear();step=minute;pub.audit={...pub.audit,push_id:frame.push_id,step};pub.image_type=frame.image_type;$('identity').textContent=`Run ${active.run_id}\nPush ${frame.push_id}\nSQL audit unavailable`;$('explanation').textContent='Historical source data unavailable; showing this publication’s image only.';($('timeline') as HTMLInputElement).value=String(step);$('step').textContent=`Minute ${step} / ${active.minutes-1}`;showImage('AUDIT_VERSION_UNAVAILABLE · published images only');ready(true);}
+function imageFrame(minute:number){const frame=replay.images.find((f:any)=>f.step===minute);if(!frame)throw new Error('No publication for requested minute');clearEvidence();assets.clear();step=minute;persistState();pub.audit={...pub.audit,push_id:frame.push_id,step};pub.image_type=frame.image_type;$('identity').textContent=`Run ${active.run_id}\nPush ${frame.push_id}\nSQL audit unavailable`;$('explanation').textContent='Historical source data unavailable; showing this publication’s image only.';($('timeline') as HTMLInputElement).value=String(step);$('step').textContent=`Minute ${step} / ${active.minutes-1}`;showImage('AUDIT_VERSION_UNAVAILABLE · published images only');ready(true);}
 function pause(inspect=true){++seekGeneration;playing=false;clearTimeout(timer);finishBlend?.();$('play').textContent='Play';if(inspect&&pub)void inspectGate(selectedGate);}
 function ready(enabled:boolean){
  for(const id of ['play','timeline'])($(id) as HTMLButtonElement|HTMLInputElement).disabled=!enabled;
@@ -78,7 +116,7 @@ function clearEvidence(){
 }
 ready(false);
 function paint(frame:any){
- step=frame.step;pub.audit={...pub.audit,push_id:frame.push_id,step};pub.image_type=frame.image_type;
+ step=frame.step;persistState();pub.audit={...pub.audit,push_id:frame.push_id,step};pub.image_type=frame.image_type;
  for(const row of frame.states){const mesh=assets.get(row.asset_id);if(mesh){(mesh.material as THREE.MeshStandardMaterial).color.set(row.colour);mesh.userData.status=row.status;}}
  if(renderer)renderer.domElement.dataset.assetStates=JSON.stringify([...assets].map(([id,mesh])=>({asset_id:id,status:mesh.userData.status,colour:'#'+(mesh.material as THREE.MeshStandardMaterial).color.getHexString()})));
  ($('timeline') as HTMLInputElement).value=String(step);$('step').textContent=`Minute ${step} / ${active.minutes-1}`;
@@ -102,7 +140,7 @@ async function select(run:Run){
  const previous=new Map([...assets].map(([id,mesh])=>[id,(mesh.material as THREE.MeshStandardMaterial).color.clone()]));
  const epoch=++generation;request?.abort();request=new AbortController();pause(false);clearEvidence();ready(false);frames=new Map();auditUnavailable=false;pub=undefined;replay=undefined;assets.clear();
  active=run;$('status').textContent='Querying Unity Catalog…';$('message').textContent='Loading audited replay…';$('identity').textContent=`Loading run ${run.run_id}`;$('explanation').textContent='Loading run…';
- const compare=$('compare') as HTMLAnchorElement;compare.removeAttribute('href');compare.setAttribute('aria-disabled',String(!run.comparison?.url));if(run.comparison?.url)compare.href=run.comparison.url;$('comparison-note').textContent=run.comparison?.reason||'';
+ const compare=$('compare') as HTMLAnchorElement;compare.removeAttribute('href');compare.setAttribute('aria-disabled',String(!run.comparison?.url));if(run.comparison?.url)evidenceLink('compare',run.comparison.url);$('comparison-note').textContent=run.comparison?.reason||'';
  try{
   const sets=await get(`/api/runs/${run.run_id}/replays`,request.signal);if(epoch!==generation)return;
   if(!sets.length)throw Object.assign(new Error('This run has no complete audited replay with matching source versions. Choose another available run.'),{code:'REPLAY_UNAVAILABLE'});replay=sets[0];
@@ -112,12 +150,12 @@ async function select(run:Run){
   const publication=await get(`/api/publications/${initial.push_id}`,request.signal),rows=initial.states;
   if(epoch!==generation)return;pub=publication;
   $('identity').textContent=`Run ${run.run_id}\nPush ${pub.audit.push_id.slice(0,12)}`;
-  ($('mlflow') as HTMLAnchorElement).href=run.run_url;
+  evidenceLink('mlflow',run.run_url);
   document.querySelectorAll<HTMLElement>('.swatch').forEach((el,i)=>{el.style.background=pub.legend.colours[['ok','warn','crit'][i]];});
   $('thresholds').replaceChildren(...pub.legend.thresholds.map((row:any)=>{const p=document.createElement('div');p.textContent=row.text;return p;}));
   if(model){scene.remove(model);model.traverse(o=>{if(o instanceof CSS2DObject)o.element.remove();if(o instanceof THREE.Mesh){o.geometry.dispose();(o.material as THREE.Material).dispose();}});}assets.clear();
   if(renderer){try{
-   const gltf=await new GLTFLoader().loadAsync(`/api/publications/${initial.push_id}/model.glb`);
+   const gltf=await new GLTFLoader().loadAsync(apiPrefix+`/api/publications/${initial.push_id}/model.glb`);
    if(epoch!==generation)return;model=gltf.scene;scene.add(model);
    model.traverse(o=>{if(o instanceof THREE.Mesh){o.material=(o.material as THREE.Material).clone();if(rows.some((r:State)=>r.asset_id===o.name))assets.set(o.name,o);}});
    if(assets.size!==10)throw new Error('Expected ten stable asset nodes');
@@ -148,11 +186,37 @@ if(renderer){
   const hit=ray.intersectObjects([...assets.values()])[0];if(hit?.object.name.startsWith('GATE_'))void inspectGate(hit.object.name,true);
  });
 }
-get('/api/runs').then((runs:Run[])=>{
- const dropdown=$('run') as HTMLSelectElement;dropdown.add(new Option('Select a published run',''));
+let refreshing=false;
+async function refreshRuns(){
+ if(refreshing)return;
+ refreshing=true;($('refresh') as HTMLButtonElement).disabled=true;
+ try {
+ const runs:Run[]=await get('/api/runs');
+ const dropdown=$('run') as HTMLSelectElement;dropdown.replaceChildren();dropdown.add(new Option('Select a published run',''));
  for(const r of runs){const option=new Option(`${r.scenario} · ${r.run_id.slice(0,8)} · ${r.minutes} min${r.replay_available===false?' · replay unavailable':''}`,r.run_id);option.disabled=r.replay_available===false;option.title=r.replay_unavailable_reason||'';dropdown.add(option);}
  dropdown.onchange=()=>{const chosen=runs.find(r=>r.run_id===dropdown.value);if(chosen)void select(chosen);};
+ const requested=active?.run_id || initialState.get('run');
+ if(requested){
+  const chosen=runs.find(r=>r.run_id===requested&&r.replay_available!==false);
+  if(chosen){
+   dropdown.value=chosen.run_id;
+   if(!active){
+    selectedGate=/^GATE_A[1-8]$/.test(initialState.get('gate')||'')?initialState.get('gate')!:'GATE_A4';
+    await select(chosen);
+    const minute=Number(initialState.get('minute'));
+    if(initialState.has('minute')&&Number.isInteger(minute)&&minute>=0&&minute<chosen.minutes)await seek(minute);
+   }
+   return;
+  }
+  pause(false);clearEvidence();ready(false);pub=undefined;replay=undefined;
+  $('message').textContent='Selected run is unavailable. Choose another published run.';
+  return;
+ }
  const pairs=runs.filter(r=>r.replay_available!==false&&r.scenario==='delay_A4'&&r.comparison?.comparison_id);
  if(pairs.length===1){dropdown.value=pairs[0].run_id;return select(pairs[0]);}
  $('status').textContent='Select a run';$('message').textContent='Choose an explicit published run; no unique filming pair is configured.';
-}).catch(error=>{$('message').textContent=String(error);});
+ }catch(error){$('message').textContent='Refresh failed. Use Refresh data to retry. '+String(error);}
+ finally{refreshing=false;($('refresh') as HTMLButtonElement).disabled=false;}
+}
+$('refresh').onclick=()=>void refreshRuns();
+void refreshRuns();

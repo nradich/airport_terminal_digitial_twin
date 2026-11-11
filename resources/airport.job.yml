@@ -22,7 +22,7 @@ targets:
             - task_key: setup
               environment_key: airport
               notebook_task:
-                notebook_path: ../notebooks/00_setup.py
+                notebook_path: ../notebooks/Airport Digital Twin/00_setup.py
                 base_parameters: &configuration
                   TWIN_CATALOG: ${var.catalog}
                   TWIN_SCHEMA: ${var.schema}
@@ -38,7 +38,7 @@ targets:
               depends_on: [{task_key: setup}]
               environment_key: airport
               notebook_task:
-                notebook_path: ../notebooks/01_build_scene.py
+                notebook_path: ../notebooks/Airport Digital Twin/01_build_scene.py
                 base_parameters: *configuration
             - task_key: simulate
               depends_on: [{task_key: build_scene}]
@@ -46,13 +46,13 @@ targets:
               max_retries: 0
               disable_auto_optimization: true
               notebook_task:
-                notebook_path: ../notebooks/02_simulate.py
+                notebook_path: ../notebooks/Airport Digital Twin/02_simulate.py
                 base_parameters: *configuration
             - task_key: push_scene
               depends_on: [{task_key: simulate}]
               environment_key: airport
               notebook_task:
-                notebook_path: ../notebooks/03_push_scene.py
+                notebook_path: ../notebooks/Airport Digital Twin/03_push_scene.py
                 base_parameters:
                   <<: *configuration
                   run_id: "{{tasks.simulate.values.run_id}}"
@@ -60,7 +60,7 @@ targets:
               depends_on: [{task_key: push_scene}]
               environment_key: airport
               notebook_task:
-                notebook_path: ../notebooks/04_validate.py
+                notebook_path: ../notebooks/Airport Digital Twin/04_validate.py
                 base_parameters:
                   <<: *configuration
                   run_id: "{{tasks.simulate.values.run_id}}"

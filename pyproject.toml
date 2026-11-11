@@ -40,5 +40,5 @@ line-length = 100
 select = ["E", "F", "I", "UP", "B"]
 
 [tool.ruff.lint.per-file-ignores]
-"notebooks/*.py" = ["F821"]
+"notebooks/**/*.py" = ["F821"]
 

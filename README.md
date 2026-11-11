@@ -49,7 +49,7 @@ docs/spark-platform.md. Install airport dependencies with `uv sync --inexact`
 inside the service, using its system-site-packages virtual environment. Spark
 is supplied by the platform, never installed by the airport package.
 
-The source notebooks execute in order through the real Jupyter kernel. Logs
+The source notebooks live under `notebooks/Airport Digital Twin/` and execute in order through the real Jupyter kernel. Logs
 report the run ID explicitly; later push/validate commands require that ID.
 M1 produces ten assets, eight flights, and 2,520 readings for sixty minutes.
 The local SQL-function attempt is unsupported, so latest_state governs colour

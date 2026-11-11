@@ -77,3 +77,25 @@ test('missing replay id has an actionable error without retaining old evidence',
  await expect(page.locator('#metrics')).toBeEmpty();await expect(page.locator('#source-versions')).toBeEmpty();
  await expect(page.locator('#play')).toBeDisabled();
 });
+
+
+test('refresh discovers published runs and preserves the active replay on failure', async ({page}) => {
+ await page.goto('/');
+ await expect(page.locator('#status')).toHaveText('Unity Catalog connected');
+ const selected = await page.locator('#run').inputValue();
+ const initialIdentity = await page.locator('#identity').textContent();
+ const published = [selected, 'd'.repeat(32)];
+ await page.route('**/api/runs', route => route.fulfill({json:published.map(run_id => ({
+  run_id, scenario:'delay_A4',run_name:'Newly published run',minutes:120,
+  run_url:'http://mlflow.invalid/run/'+run_id,replay_available:true,comparison:{url:null},
+ }))}));
+ await page.getByRole('button',{name:'Refresh data',exact:true}).click();
+ await expect(page.locator('#run option')).toHaveCount(3);
+ await expect(page.locator('#run')).toHaveValue(selected);
+ await expect(page.locator('#identity')).toHaveText(initialIdentity!);
+ await page.route('**/api/runs', route => route.fulfill({status:503,json:{message:'Temporary outage'}}));
+ await page.getByRole('button',{name:'Refresh data',exact:true}).click();
+ await expect(page.locator('#message')).toContainText('Refresh failed');
+ await expect(page.locator('#run')).toHaveValue(selected);
+ await expect(page.getByRole('button',{name:'Refresh data',exact:true})).toBeEnabled();
+});
