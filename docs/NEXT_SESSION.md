@@ -1,32 +1,70 @@
-# Next session — Azure proof remains gated
+# Restart handoff — 2026-11-11
 
-Airport: cursor/m7-browser-twin-pr-41e6. Implementation checkpoint 5caf847.
-Platform: codex/airport-platform-prereqs, latest 046b3e7; three commits ahead of
-its remote. No push, new PR or deployment was performed. The unrelated platform
-files demo_audio.wav and docs/demo-plan.md remain untouched.
+Airport: cursor/m7-browser-twin-pr-41e6, latest implementation 8dcd733 (American
+spelling in visible UI). Airport PR #1 was updated and GitHub CI passed:
+https://github.com/nradich/airport_terminal_digitial_twin/pull/1.
+Platform checkout: codex/airport-platform-prereqs, latest 046b3e7. The same three
+gateway/App commits were pushed as codex/airport-query-gateway, with green CI:
+https://github.com/nradich/local_uc/pull/9 (base codex/airport-platform-prereqs).
+Both PRs need human review; neither was merged. No Azure deployment was performed.
+Unrelated platform files demo_audio.wav and docs/demo-plan.md remain untouched.
+
+## Resume after the computer restarts
+
+Start Docker Desktop and wait for its Linux engine. From
+C:\Users\nicho\Desktop\Workspace\LocalUnityCatalog, restore the existing stack:
+
+```powershell
+docker compose -f compose.yaml -f compose.spark.yaml -f compose.twin-app.yaml up -d
+docker compose -f compose.yaml -f compose.spark.yaml -f compose.twin-app.yaml ps
+```
+
+The full cold-boot sequence is UNTESTED after this handoff; the component build,
+startup and query-gateway restart commands have been exercised locally. Existing
+named Docker volumes hold Delta/UC, scenes and MLflow state. Keep those volumes;
+do not use down -v or prune them. Ignored .local/twin-app.env supplies the existing
+gateway secret and is already on disk; never commit its contents.
+
+Open http://127.0.0.1:8000/ for the App, http://localhost:3000 for the workspace,
+and http://localhost:5000/mlflow/ for MLflow. Allow Spark time to warm up before
+refreshing the App. If QUERY_FAILED recurs, inspect twin-query logs before retrying.
+
+On 2026-11-11 the gateway's Java process stopped answering while the Python HTTP
+health endpoint still reported healthy. Restarting only twin-query restored SQL
+reads (HTTP 200) and the full browser scene/provenance panel. Cause of the Java
+exit is UNVERIFIED. Follow-up: make readiness detect a dead Spark connection and
+clear stale UI evidence when a run change fails. Do not substitute current data
+for missing audited history.
 
 ## What to open
 
-- Browser twin: http://localhost:8000. Click a gate or its gate-table button.
+- Browser twin: http://127.0.0.1:8000/. Click a gate or its gate-table button.
 - Tight provenance: explanation, five rows, rule, run/push and source versions;
   Details collapsed. Compare in MLflow opens the explicit filming pair.
 - MLflow: http://localhost:5000/mlflow/ (experiment /Shared/airport-twin).
-- Start tomorrow with ../PREFLIGHT.md; evidence is in REHEARSAL.md.
+- For an authorized Azure session start with ../PREFLIGHT.md; evidence is in REHEARSAL.md.
 
 ## Current filming identities
 
 Baseline: 5767b836d78146fdab7d786a1795f8c7.
 Delay: 7a617dc8b34b41f98b02725e04db4944.
+These filming runs are 60 minutes, steps 0–59; peak A4 populations are 126/213.
+The 120-minute test run is baseline 7cf727f3ceee423594894181a9574fdb (the last
+dropdown option, steps 0–119). Its complete audited replay was verified available
+on 2026-11-11. It has legacy publication metadata, not the newer frozen-rule/
+publisher fields; it is not the explicit filming comparison pair.
 Comparison: 798f7f7331c6f1c2ae5768c4278ab6c7031e5b63375ff51a82873424ccef605b.
 Fresh viewer artifact: viewer/5da303a3f3cbf2c43a8b04d726e860a66d056a78e2a2617e43b6f96912ba22c2/viewer.json.
 New v2 publications freeze SQL, source versions, publisher Git/package/source hash;
 four native Delta dataset inputs are logged to each run. Older publications remain.
 
-Fresh Composer files were exported to .local/omniverse-provenance and round-trip
-checked with OpenUSD. Existing .local/omniverse-test files and unsaved desktop
-stages were not overwritten. The current Kit launcher still uses omniverse-test:
-loading the fresh export into the desktop renderer is a remaining manual rehearsal
-step, not a claimed GPU pass for the new bundle. Historical M5 GPU evidence stands.
+Fresh Composer files are saved in .local/omniverse-provenance and round-trip
+checked with OpenUSD. RTX desktop verification passed: Baseline Overview, Delay
+A4 red/213, all ten labels and A4 close-up. Existing .local/omniverse-test exports
+and other desktop stages were not overwritten. Set TWIN_VIEWER_DIRECTORY to the
+absolute .local/omniverse-provenance directory before using the existing Kit
+launcher; see kit/README.md. The fresh viewer.json and both entry USD files are
+already on disk; no scene re-publication is required merely to reopen them.
 
 ## Azure session order
 
@@ -40,7 +78,6 @@ step, not a claimed GPU pass for the new bundle. Historical M5 GPU evidence stan
    app/app.yaml; cloud routing is deliberately unavailable until verified.
 6. Check SP grants/denied writes, Volume/MLflow retrieval, UC lineage and full replay.
 
-M4/M7e remain incomplete until real authenticated execution passes. CI is prepared
-but not activated remotely. PR #1 needs review after an authorized push of the new
-commits; the gateway changes need a separate scoped PR after approval. M6 and props
+M4/M7e remain incomplete until real authenticated execution passes. CI is active
+and passed on both PRs. Airport PR #1 and gateway PR #9 need review. M6 and props
 stay on hold. Keep 365-day retention and no VACUUM/history truncation.
