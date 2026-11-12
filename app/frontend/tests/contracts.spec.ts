@@ -3,6 +3,23 @@ import {test,expect} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 const ids=['a'.repeat(32),'b'.repeat(32)];
 let metadata:any;
+test('recorded passenger choices and paired replay clear on minute change',async({page})=>{
+ await page.route('**/journeys',async route=>route.fulfill({contentType:'application/json',
+   body:await readFile('.local/contracts/journey.json')}));
+ await page.goto('/');
+ await expect(page.locator('#status')).toHaveText('Unity Catalog connected');
+ await page.getByRole('button',{name:'Explore this minute'}).click();
+ await expect(page.locator('[data-outcome]')).toContainText('30 ahead');
+ await page.getByLabel('Checkpoint').selectOption('precheck');
+ await page.getByLabel('Coffee',{exact:true}).check();
+ await expect(page.locator('[data-outcome]')).toContainText('10 ahead');
+ await page.getByLabel('Replay trial 1').selectOption({index:1});
+ await page.getByRole('button',{name:'Play passenger journey'}).click();
+ await expect(page.locator('[data-clock]')).toContainText('Bag drop');
+ await page.locator('#timeline').fill('100');
+ await expect(page.locator('[data-controls]')).toBeHidden();
+ await expect(page.locator('[data-clock]')).toBeEmpty();
+});
 test.beforeAll(async()=>{metadata=JSON.parse(await readFile('.local/contracts/metadata.json','utf8'));});
 test.beforeEach(async({page})=>{
  await page.route('**/api/**',async route=>{

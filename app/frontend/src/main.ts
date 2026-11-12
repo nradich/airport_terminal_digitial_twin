@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {journeyPanel} from './journey';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {CSS2DRenderer,CSS2DObject} from 'three/addons/renderers/CSS2DRenderer.js';
@@ -51,6 +52,8 @@ let camera:THREE.PerspectiveCamera|THREE.OrthographicCamera;
 let controls:OrbitControls;
 const labelRenderer=new CSS2DRenderer();labelRenderer.domElement.style.cssText='position:absolute;top:0;pointer-events:none';stage.append(labelRenderer.domElement);
 const assets=new Map<string,THREE.Mesh>();
+const setJourneyPublication=journeyPanel(scene, id=>get('/api/publications/'+id+'/journeys'),
+ id=>assets.get(id)?.getWorldPosition(new THREE.Vector3()), ()=>pause(false));
 let model:THREE.Group|undefined, pub:any, active:Run, generation=0, imageMode=false;
 const convert=(p:number[])=>new THREE.Vector3(p[0],p[2],-p[1]);
 
@@ -106,6 +109,7 @@ function ready(enabled:boolean){
  ($('image') as HTMLButtonElement).disabled=!enabled||auditUnavailable;
 }
 function clearEvidence(){
+ setJourneyPublication('');
  ++provenanceGeneration;
  for(const id of ['metrics','health','sensors','verification','rule','source-versions','audit-details','thresholds','step'])$(id).replaceChildren();
  $('gate-title').textContent='Select a gate';$('explanation').textContent='';
@@ -116,6 +120,7 @@ function clearEvidence(){
 }
 ready(false);
 function paint(frame:any){
+ setJourneyPublication(frame.push_id);
  step=frame.step;persistState();pub.audit={...pub.audit,push_id:frame.push_id,step};pub.image_type=frame.image_type;
  for(const row of frame.states){const mesh=assets.get(row.asset_id);if(mesh){(mesh.material as THREE.MeshStandardMaterial).color.set(row.colour);mesh.userData.status=row.status;}}
  if(renderer)renderer.domElement.dataset.assetStates=JSON.stringify([...assets].map(([id,mesh])=>({asset_id:id,status:mesh.userData.status,colour:'#'+(mesh.material as THREE.MeshStandardMaterial).color.getHexString()})));

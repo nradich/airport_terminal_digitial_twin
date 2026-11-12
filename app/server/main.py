@@ -87,6 +87,29 @@ def model(push_id: str):
     return Response(app.state.data.model(push_id), media_type="model/gltf-binary")
 
 
+@app.get("/api/publications/{push_id}/journeys")
+def journeys(push_id: str):
+    import json
+
+    from airport_twin.tracking import assert_run, run_url
+
+    data = app.state.data
+    publication = data.publication(push_id)["audit"]
+    results = []
+    for row in data.sql.read("journeys", {"push_id": push_id}):
+        run = assert_run(data.config, row["run_id"])
+        if run.info.status != "FINISHED":
+            continue
+        inputs = json.loads(row["input_json"])
+        if (row["source_run"] != publication["run_id"] or inputs["push_id"] != push_id
+                or run.data.tags.get("mlflow.parentRunId") != publication["run_id"]
+                or run.data.tags.get("journey.push_id") != push_id):
+            raise ReadError("JOURNEY_SOURCE_MISMATCH", status=409)
+        results.append(dict(inputs=inputs, profiles=json.loads(row["summary_json"]),
+                            run_id=row["run_id"], url=run_url(data.config, row["run_id"])))
+    return results
+
+
 @app.get("/api/publications/{push_id}/assets/{asset_id}/provenance")
 def provenance(push_id: str, asset_id: str):
     from airport_twin.provenance import gate_provenance

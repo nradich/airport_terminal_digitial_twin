@@ -37,6 +37,8 @@ class Config:
             "scene_pushes",
             "latest_state",
             "gate_health",
+            "journey_trials",
+            "journey_experiments",
         }:
             raise ValueError(f"Unknown twin object: {name}")
         return f"{self.namespace}.{name}"
