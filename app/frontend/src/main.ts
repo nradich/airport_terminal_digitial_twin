@@ -107,6 +107,7 @@ let auditUnavailable=false;
 function imageFrame(minute:number){const frame=replay.images.find((f:any)=>f.step===minute);if(!frame)throw new Error('No publication for requested minute');clearEvidence();assets.clear();step=minute;persistState();pub.audit={...pub.audit,push_id:frame.push_id,step};pub.image_type=frame.image_type;$('identity').textContent=`Run ${active.run_id}\nPush ${frame.push_id}\nSQL audit unavailable`;$('explanation').textContent='Historical source data unavailable; showing this publication’s image only.';($('timeline') as HTMLInputElement).value=String(step);$('step').textContent=`Minute ${step} / ${active.minutes-1}`;showImage('AUDIT_VERSION_UNAVAILABLE · published images only');ready(true);}
 function pause(inspect=true){++seekGeneration;playing=false;clearTimeout(timer);finishBlend?.();$('play').textContent='Play';if(inspect&&pub)void inspectGate(selectedGate);}
 function ready(enabled:boolean){
+ ($('busiest') as HTMLButtonElement).disabled=!enabled||auditUnavailable;
  for(const id of ['play','timeline'])($(id) as HTMLButtonElement|HTMLInputElement).disabled=!enabled;
  for(const id of ['overview','closeup'])($(id) as HTMLButtonElement).disabled=!enabled||!renderer||assets.size!==10;
  ($('image') as HTMLButtonElement).disabled=!enabled||auditUnavailable;
@@ -122,8 +123,8 @@ function clearEvidence(){
  if(renderer){renderer.domElement.dataset.assetStates='[]';renderer.domElement.dataset.blending='false';}
 }
 ready(false);
-function paint(frame:any){
- setJourneyPublication(frame.push_id);
+function paint(frame:any,story=false){
+ setJourneyPublication(frame.push_id,story?frame.step:undefined);
  step=frame.step;persistState();pub.audit={...pub.audit,push_id:frame.push_id,step};pub.image_type=frame.image_type;
  for(const row of frame.states){const mesh=assets.get(row.asset_id);if(mesh){(mesh.material as THREE.MeshStandardMaterial).color.set(row.colour);mesh.userData.status=row.status;}}
  if(renderer)renderer.domElement.dataset.assetStates=JSON.stringify([...assets].map(([id,mesh])=>({asset_id:id,status:mesh.userData.status,colour:'#'+(mesh.material as THREE.MeshStandardMaterial).color.getHexString()})));
@@ -131,7 +132,7 @@ function paint(frame:any){
  $('identity').textContent=`${active.run_name}\nRun ${active.run_id}\nPush ${frame.push_id.slice(0,12)}\nReplay ${replay.replay_id.slice(0,12)}`;
  $('metrics').replaceChildren(...Object.entries(frame.metrics).map(([key,value])=>{const p=document.createElement('p');p.textContent=`${key}: ${Number(value).toFixed(key==='avg_co2'?1:0)}`;return p;}));
  $('health').replaceChildren(...frame.states.filter((r:State)=>r.asset_id.startsWith('GATE_')).map((r:any)=>{const tr=document.createElement('tr');for(const [i,value] of [r.asset_id.replace('GATE_',''),r.status,r.pax_count].entries()){const td=document.createElement('td');if(i===0){const button=document.createElement('button');button.textContent=String(value);button.setAttribute('aria-label','Explain '+value);button.onclick=()=>void inspectGate(r.asset_id,true);td.append(button);}else td.textContent=String(value??'—');td.style.color=r.colour;tr.append(td);}return tr;}));
- $('message').textContent=`Audited minute ${step} · A4 ${frame.states.find((r:State)=>r.asset_id==='GATE_A4').status}${replay.thresholds_changed?' · Current thresholds differ; published thresholds retained':''}`;
+ $('message').textContent=`Audited minute ${step} · A4 ${frame.states.find((r:State)=>r.asset_id==='GATE_A4').status} · Security ${frame.states.find((r:State)=>r.asset_id==='SECURITY').status}${replay.thresholds_changed?' · Current thresholds differ; published thresholds retained':''}`;
  if(imageMode)showImage('Exact published minute '+step);
  if(!playing)void inspectGate(selectedGate);else{++provenanceGeneration;$('explanation').textContent='Pause to inspect this minute';for(const id of ['sensors','verification','source-versions','rule','audit-details'])$(id).replaceChildren();}
 }
@@ -140,7 +141,13 @@ async function pageAt(minute:number,epoch:number){
  let start=Math.floor(minute/60)*60;const end=Math.min(start+60,run.minutes);
  while(start<end){const page=await get(`/api/runs/${run.run_id}/timeline?replay_id=${selectedReplay.replay_id}&start_step=${start}&end_step=${end}`,signal);if(epoch!==generation)return;for(const frame of page.frames)frames.set(frame.step,frame);selectedReplay.thresholds_changed=page.thresholds_changed;start=page.end_step;}
 }
-async function seek(minute:number){if(!replay||!pub)return;const epoch=generation,ticket=++seekGeneration;try{if(auditUnavailable){imageFrame(minute);return;}if(!frames.has(minute)){$('status').textContent='Loading audited page…';await pageAt(minute,epoch);}if(epoch!==generation||ticket!==seekGeneration)return;paint(frames.get(minute));$('status').textContent='Unity Catalog connected';}catch(error){if(epoch===generation&&ticket===seekGeneration){pause(false);$('status').textContent='Audit unavailable';if((error as any).code==='AUDIT_VERSION_UNAVAILABLE'){auditUnavailable=true;imageFrame(minute);}else{clearEvidence();ready(false);pub=undefined;replay=undefined;$('message').textContent=String(error);}}}}
+async function seek(minute:number,story=false){if(!replay||!pub)return;const epoch=generation,ticket=++seekGeneration;try{if(auditUnavailable){imageFrame(minute);return;}if(!frames.has(minute)){$('status').textContent='Loading audited page…';await pageAt(minute,epoch);}if(epoch!==generation||ticket!==seekGeneration)return;paint(frames.get(minute),story);$('status').textContent='Unity Catalog connected';}catch(error){if(epoch===generation&&ticket===seekGeneration){pause(false);$('status').textContent='Audit unavailable';if((error as any).code==='AUDIT_VERSION_UNAVAILABLE'){auditUnavailable=true;imageFrame(minute);}else{clearEvidence();ready(false);pub=undefined;replay=undefined;$('message').textContent=String(error);}}}}
+$('busiest').onclick=async()=>{
+ pause(false);const epoch=generation,ticket=seekGeneration;
+ try{const result=await get('/api/runs/'+active.run_id+'/busiest?replay_id='+replay.replay_id,request?.signal);
+   if(epoch===generation && ticket===seekGeneration)await seek(result.step,true);
+ }catch{if(epoch===generation && ticket===seekGeneration)$('message').textContent='Busiest audited minute unavailable.';}
+};
 async function tick(){if(!playing)return;if(step>=active.minutes-1){pause();return;}await seek(step+1);if(playing)timer=window.setTimeout(tick,250);}
 $('play').onclick=()=>{if(playing||finishBlend){pause();return;}playing=true;$('play').textContent='Pause';if(step>=active.minutes-1)void seek(0).then(tick);else void tick();};
 $('timeline').addEventListener('input',()=>{pause();void seek(Number(($('timeline') as HTMLInputElement).value));});

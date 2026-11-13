@@ -78,6 +78,31 @@ def timeline(run_id: str, replay_id: str, start_step: int = 0, end_step: int = 6
     return read_timeline(app.state.data, run_id, replay_id, start_step, end_step)
 
 
+@app.get("/api/runs/{run_id}/busiest")
+def busiest(run_id: str, replay_id: str):
+    from datetime import datetime, timedelta
+
+    from airport_twin.app_replay import replay_sets
+
+    data = app.state.data
+    replay = next((r for r in replay_sets(data, run_id) if r["replay_id"] == replay_id), None)
+    if not replay:
+        raise ReadError("REPLAY_NOT_FOUND", status=404)
+    start = datetime.fromisoformat(replay["start_ts"])
+    rows = data.sql.read("busiest", {
+        "run_id": run_id, "start_ts": start.isoformat(),
+        "end_ts": (start + timedelta(minutes=replay["minutes"])).isoformat(),
+        "versions": replay["identity"]["delta_versions"],
+        "thresholds": replay["identity"]["thresholds"],
+    })
+    if not rows:
+        raise ReadError("AUDIT_INCOMPLETE", status=409)
+    elapsed = (datetime.fromisoformat(str(rows[0]["ts"])) - start).total_seconds()
+    if elapsed % 60 or int(elapsed // 60) not in replay["publications"]:
+        raise ReadError("AUDIT_OFF_GRID", status=409)
+    return {"step": int(elapsed // 60)}
+
+
 @app.get("/api/publications/{push_id}")
 def publication(push_id: str):
     return app.state.data.publication(push_id)

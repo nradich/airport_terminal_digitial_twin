@@ -19,7 +19,7 @@ export function journeyPanel(scene:THREE.Scene, load:(id:string)=>Promise<Experi
                              gatePoint:(id:string)=>THREE.Vector3|undefined, pause:()=>void, zone:()=>string) {
   const panel=document.createElement('section');
   panel.innerHTML=`<h2>Will I make my flight?</h2><button data-load disabled>Explore this minute</button>
-    <p data-status aria-live="polite"></p><div data-controls hidden>
+    <button id="busiest" disabled>Jump to busiest minute</button><p data-story></p><p data-status aria-live="polite"></p><div data-controls hidden>
     <label>Flight<select data-run></select></label>
     <div><label>I arrive <input data-arrival type="number" min="0" max="1440" step="1" required> minutes</label>
     <label><select data-reference aria-label="Arrival time reference">
@@ -65,7 +65,11 @@ export function journeyPanel(scene:THREE.Scene, load:(id:string)=>Promise<Experi
     el('play').textContent='Play passenger journey'; frame=0;
     activeStep(-1);
   }
-  function selectPublication(next:string) {
+  function selectPublication(next:string,storyStep?:number) {
+    if(storyStep!==undefined && experiments.length && !el('controls').hidden){
+      stop();el('story').textContent='Scene at minute '+storyStep+' · Journey odds use the queue at '+localClock(experiment.inputs.entry,zone())+'.';return;
+    }
+    el('story').textContent='';
     ++generation; id=next; stop(); experiments=[]; el('controls').hidden=true;
     ++request;clearTimeout(sourceTimer);cache.clear();map.clear();
     if(next){map.locate();sourceTimer=window.setTimeout(()=>void read(false),550);}

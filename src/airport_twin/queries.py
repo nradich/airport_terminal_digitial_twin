@@ -35,7 +35,7 @@ def build_query(name: str, parameters: dict, config: Config) -> ReadQuery:
         if parameters:
             raise ValueError("This query takes no parameters")
         return ReadQuery(plain[name], {})
-    if name in {"history", "raw_history", "raw_count", "asset_provenance"}:
+    if name in {"history", "raw_history", "raw_count", "asset_provenance", "busiest"}:
         return history_query(name, parameters, config)
     if name == "journeys" and set(parameters) == {"push_id"}:
         if not re.fullmatch(r"[0-9a-f]{64}", parameters["push_id"]):
@@ -150,6 +150,16 @@ def history_query(name: str, parameters: dict, config: Config) -> ReadQuery:
             f"SELECT * FROM ({metrics}) WHERE asset_id=:asset_id ORDER BY metric", args
         )
     gates = render(sql_text("gate_health.sql"), settings)
+    if name == "busiest":
+        # Worst status first, then combined severity, queue length, gate crowd and earliest tie.
+        return ReadQuery(
+            f"WITH metrics AS ({metrics}), gates AS ({gates}) "
+            "SELECT s.ts FROM metrics s JOIN gates g ON s.ts=g.ts "
+            "JOIN metrics pax ON pax.ts=g.ts AND pax.asset_id=g.asset_id AND pax.metric='pax_count' "
+            "WHERE s.asset_id='SECURITY' AND s.metric='queue_len' AND g.asset_id='GATE_A4' "
+            "ORDER BY greatest(s.severity,g.severity) DESC, (s.severity+g.severity) DESC, "
+            "s.value_num DESC, pax.value_num DESC, s.ts LIMIT 1", args,
+        )
     sql = (
         f"WITH metrics AS ({metrics}), gates AS ({gates}), states AS ("
         "SELECT asset_id,run_id,ts,prim_path,status,colour,severity FROM gates UNION ALL "
