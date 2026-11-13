@@ -155,7 +155,8 @@ def history_query(name: str, parameters: dict, config: Config) -> ReadQuery:
         return ReadQuery(
             f"WITH metrics AS ({metrics}), gates AS ({gates}) "
             "SELECT s.ts FROM metrics s JOIN gates g ON s.ts=g.ts "
-            "JOIN metrics pax ON pax.ts=g.ts AND pax.asset_id=g.asset_id AND pax.metric='pax_count' "
+            "JOIN metrics pax ON pax.ts=g.ts AND pax.asset_id=g.asset_id "
+            "AND pax.metric='pax_count' "
             "WHERE s.asset_id='SECURITY' AND s.metric='queue_len' AND g.asset_id='GATE_A4' "
             "ORDER BY greatest(s.severity,g.severity) DESC, (s.severity+g.severity) DESC, "
             "s.value_num DESC, pax.value_num DESC, s.ts LIMIT 1", args,

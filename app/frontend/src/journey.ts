@@ -30,7 +30,7 @@ export function journeyPanel(scene:THREE.Scene, load:(id:string)=>Promise<Experi
     <label><input type="checkbox" data-bag checked> Checked bag</label>
     <label><input type="checkbox" data-coffee> Coffee</label>
     <label><input type="checkbox" data-restroom> Restroom</label>
-    <p data-outcome aria-live="polite"></p><ol data-route aria-label="Route through the terminal"></ol>
+    <div data-outcome aria-live="polite"></div><ol data-route aria-label="Route through the terminal"></ol>
     <label>Replay trial 1<select data-arm><option>Baseline</option><option>Additional lane</option></select></label>
     <button data-play>Play passenger journey</button><p data-clock aria-live="off"></p>
     <details><summary>Journey times and bottlenecks</summary><table><caption>Journey time distribution · trial counts</caption>
@@ -102,7 +102,7 @@ export function journeyPanel(scene:THREE.Scene, load:(id:string)=>Promise<Experi
     el('bottleneck').textContent='Longest average stage: '+bottleneck(base)+' → '+bottleneck(extra)+'.';
     el<HTMLAnchorElement>('link').href=experiment.url;
     el('policy').textContent=inputs.trials+' paired trials. Frozen queue: '+inputs.queue+
-      '.\n95% intervals at original recorded entry: ';
+      '.\nChance colors: green ≥ 80%, amber ≥ 50%, red below 50%.\n95% intervals at original recorded entry: ';
     el('policy').append(runLink(base.ci.map(percent).join('–')),' / ',runLink(extra.ci.map(percent).join('–')),
       '.\n'+Object.entries(inputs.policy).map(([k,v])=>k.replaceAll('_',' ')+': '+v).join('\n'));
   }
@@ -138,14 +138,20 @@ export function journeyPanel(scene:THREE.Scene, load:(id:string)=>Promise<Experi
     }
     play.disabled=false;
     const outcome=el('outcome');
-    outcome.textContent=(budget<0?'Boarding closed '+minutes(-budget)+' before arrival. ':
-      'You have '+minutes(budget)+' to reach the gate. ')+
-      'Chance of making boarding: ';
+    const support=(budget<0?'Boarding closed '+minutes(-budget)+' before arrival. ':
+      'You have '+minutes(budget)+' to reach the gate. ');
+    outcome.replaceChildren();
+    const title=document.createElement('strong');title.textContent='Chance of making boarding';
+    const cards=document.createElement('div');cards.className='chance-pair';outcome.append(title,cards);
     chances.forEach((chance,i)=>{
-      outcome.append(runLink(percent(chance)),i===0?' with '+chosen.lanes+(chosen.lanes===1?' lane':' lanes'):' with one extra lane',
-        ' (',runLink('Open in MLflow'),i===0?'), or ':'). ');
+      const card=document.createElement('div'), value=runLink(percent(chance));
+      const caption=document.createElement('span');
+      caption.textContent=i===0?'with '+chosen.lanes+(chosen.lanes===1?' lane':' lanes'):'with one extra lane';
+      value.className='chance '+(chance>=.8?'likely':chance>=.5?'uncertain':'unlikely');
+      card.append(value,' ',caption,runLink('Open in MLflow'));cards.append(card);
     });
-    outcome.append(chosen.ahead+' ahead of you in '+(chosen.kind==='standard'?'standard security.':'TSA PreCheck.'));
+    const detail=document.createElement('p');outcome.append(detail);
+    detail.append(support+chosen.ahead+' ahead of you in '+(chosen.kind==='standard'?'standard security.':'TSA PreCheck.'));
   }
   async function read(manual:boolean){
     clearTimeout(sourceTimer);if(manual)pause(); const ticket=++generation; stop(); el('controls').hidden=true;
