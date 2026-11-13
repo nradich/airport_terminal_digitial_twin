@@ -144,11 +144,13 @@ export function journeyPanel(scene:THREE.Scene, load:(id:string)=>Promise<Experi
     const title=document.createElement('strong');title.textContent='Chance of making boarding';
     const cards=document.createElement('div');cards.className='chance-pair';outcome.append(title,cards);
     chances.forEach((chance,i)=>{
-      const card=document.createElement('div'), value=runLink(percent(chance));
+      const card=document.createElement('div'), value=document.createElement('strong');
+      value.textContent=percent(chance);
       const caption=document.createElement('span');
-      caption.textContent=i===0?'with '+chosen.lanes+(chosen.lanes===1?' lane':' lanes'):'with one extra lane';
+      caption.className='lane-count';
+      caption.textContent=i===0?chosen.lanes+(chosen.lanes===1?' lane':' lanes'):'+1 lane';
       value.className='chance '+(chance>=.8?'likely':chance>=.5?'uncertain':'unlikely');
-      card.append(value,' ',caption,runLink('Open in MLflow'));cards.append(card);
+      card.append(value,caption,runLink('Open in MLflow'));cards.append(card);
     });
     const detail=document.createElement('p');outcome.append(detail);
     detail.append(support+chosen.ahead+' ahead of you in '+(chosen.kind==='standard'?'standard security.':'TSA PreCheck.'));

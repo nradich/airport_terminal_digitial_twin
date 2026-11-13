@@ -43,10 +43,12 @@ test('recorded passenger choices and paired replay clear on minute change',async
    {lanes:2,histogram:[{seconds:900,n:60},{seconds:901,n:40}]},
  ]}));
  await page.getByRole('spinbutton').fill('15');
- await expect(page.locator('[data-outcome]')).toContainText('30.0% with 1 lane');
+ await expect(page.locator('.chance')).toHaveText(['30.0%','60.0%']);
+ await expect(page.locator('.lane-count')).toHaveText(['1 lane','+1 lane']);
+ await expect(page.locator('.chance-pair a')).toHaveText(['Open in MLflow','Open in MLflow']);
  await page.getByLabel('Arrival time reference').selectOption('departure');
  await expect(page.locator('[data-outcome]')).toContainText('0.0 min to reach the gate');
- await expect(page.locator('[data-outcome]')).toContainText('0.0% with 1 lane');
+ await expect(page.locator('.chance').first()).toHaveText('0.0%');
  await expect(page.locator('[data-route]')).toContainText('Coffee');
  await expect(page.locator('#gate-diagnostics')).not.toHaveAttribute('open','');
  await page.getByLabel('Replay trial 1').selectOption({index:1});
