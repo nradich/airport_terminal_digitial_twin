@@ -1,3 +1,4 @@
+import {localClock,countdown} from './airport-clock';
 import * as THREE from 'three';
 import {journeyMap} from './journey-map';
 
@@ -6,7 +7,7 @@ type Arm = { probability:number; ci:number[]; p50:number; p90:number; bins:numbe
 type Profile = {kind:string; bag:boolean; coffee:boolean; restroom:boolean; lanes:number;
   ahead:number; arms:Arm[]; gain:number; gain_ci:number[]};
 type Experiment = {run_id:string; url:string; inputs:{flight:string; gate:string; entry:string;
-  close:string; budget:number; trials:number; queue:number; policy:Record<string,unknown>}; profiles:Profile[]};
+  departure?:string;close:string; budget:number; trials:number; queue:number; policy:Record<string,unknown>}; profiles:Profile[]};
 const labels:Record<string,string> = {bag:'Bag drop',security_wait:'Security line',
   screening:'Screening',coffee:'Coffee',restroom:'Restroom',walk:'Walk to gate'};
 const percent = (p:number) => (100*p).toFixed(1)+'%';
@@ -15,7 +16,7 @@ const minutes = (s:number) => (s/60).toFixed(1)+' min';
 export function journeyPanel(scene:THREE.Scene, load:(id:string)=>Promise<Experiment[]>,
                              durations:(run:string,params:URLSearchParams)=>Promise<
                                {lanes:number;histogram:{seconds:number;n:number}[]}[]>,
-                             gatePoint:(id:string)=>THREE.Vector3|undefined, pause:()=>void) {
+                             gatePoint:(id:string)=>THREE.Vector3|undefined, pause:()=>void, zone:()=>string) {
   const panel=document.createElement('section');
   panel.innerHTML=`<h2>Will I make my flight?</h2><button data-load disabled>Explore this minute</button>
     <p data-status aria-live="polite"></p><div data-controls hidden>
@@ -76,9 +77,11 @@ export function journeyPanel(scene:THREE.Scene, load:(id:string)=>Promise<Experi
       p.coffee===checked('coffee') && p.restroom===checked('restroom'))!;
     const {inputs}=experiment, [base,extra]=chosen.arms;
     const buffer=Number(inputs.policy.boarding_buffer_minutes??15);
+    const departure=inputs.departure??new Date(Date.parse(inputs.close)+buffer*60000).toISOString();
+    el('status').title='UTC · close '+inputs.close+' · departure '+departure+' · queue '+(inputs.entry||'—');
     el('status').textContent=inputs.flight+' · Gate '+inputs.gate.replace('GATE_','')+
-      ' · Boarding closes '+inputs.close.slice(11,16)+' UTC, '+buffer+' min before departure. Queue frozen at '+
-      (inputs.entry?.slice(11,16)||'recorded entry')+' UTC.';
+      ' · Boarding closes '+localClock(inputs.close,zone())+' · Departs '+localClock(departure,zone())+
+      ' · Queue frozen '+localClock(inputs.entry,zone())+'.';
     const keys=Object.keys(labels).filter(k=>k in base.sample);
     map.route(keys,inputs.gate);
     el('route').replaceChildren(...['Arrive at terminal',...keys.map(k=>k==='walk'?
@@ -163,14 +166,14 @@ export function journeyPanel(scene:THREE.Scene, load:(id:string)=>Promise<Experi
           crowd.count=key==='security_wait'?Math.min(100,Math.ceil(chosen.ahead*(1-f))):0;
           for(let i=0;i<crowd.count;i++) crowd.setMatrixAt(i,matrix.makeTranslation(-14+(i%6)*.6,.7,4.8+Math.floor(i/6)*.62));
           crowd.instanceMatrix.needsUpdate=true;crowd.computeBoundingSphere();
-          el('clock').textContent=labels[key]+' · '+minutes(t)+' elapsed · '+minutes(budget-t)+' to close';
+          el('clock').textContent=labels[key]+' · '+minutes(t)+' elapsed · '+'Boarding closes in '+countdown(budget-t);
           break;
         }
         elapsed+=duration;from=points[key];
       }
       if(t<total)frame=requestAnimationFrame(animate);
       else{frame=0;el('play').textContent='Replay passenger journey';el('clock').textContent=
-        (total<=budget?'Made boarding':'Missed boarding')+' · '+minutes(total)+' elapsed';}
+        (total<=budget?'Made boarding':'Missed boarding')+' · '+minutes(total)+' elapsed · Boarding closes in '+countdown(budget-total);}
     }
     frame=requestAnimationFrame(animate);
   };

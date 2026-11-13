@@ -61,6 +61,7 @@ def replays(run_id: str):
     return [
         {
             **{k: value for k, value in item.items() if k != "publications"},
+            "airport_timezone": app.state.data.config.airport_timezone,
             "images": [
                 {"step": step, "push_id": p["audit"]["push_id"], "image_type": p["image_type"]}
                 for step, p in sorted(item["publications"].items())

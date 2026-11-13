@@ -1,3 +1,4 @@
+import {localClock} from './airport-clock';
 import {layoutLabels} from './labels';
 import * as THREE from 'three';
 import {journeyPanel} from './journey';
@@ -55,7 +56,7 @@ const labelRenderer=new CSS2DRenderer();labelRenderer.domElement.style.cssText='
 const assets=new Map<string,THREE.Mesh>();
 const setJourneyPublication=journeyPanel(scene, id=>get('/api/publications/'+id+'/journeys'),
  (run,params)=>get('/api/journeys/'+run+'/durations?'+params),
- id=>assets.get(id)?.getWorldPosition(new THREE.Vector3()), ()=>pause(false));
+ id=>assets.get(id)?.getWorldPosition(new THREE.Vector3()), ()=>pause(false), ()=>replay?.airport_timezone||'America/Los_Angeles');
 let model:THREE.Group|undefined, pub:any, active:Run, generation=0, imageMode=false;
 const convert=(p:number[])=>new THREE.Vector3(p[0],p[2],-p[1]);
 
@@ -78,10 +79,10 @@ async function inspectGate(assetId:string,reveal=false){
  if(!push)return;$('gate-title').textContent=assetId.replace('GATE_','')+' · Why this color?';$('explanation').textContent='Checking publication evidence…';for(const id of ['sensors','verification','rule','source-versions','audit-details'])$(id).replaceChildren();
  try{const data=await get(`/api/publications/${push}/assets/${assetId}/provenance`,request?.signal);
   if(ticket!==provenanceGeneration||epoch!==generation||push!==pub?.audit.push_id)return;
-  $('explanation').textContent=data.explanation;$('verification').textContent=(data.verification==='verified'?'Verified against published Delta versions':data.verification)+' · '+data.sensors[0].ts;
+  $('explanation').textContent=data.explanation;$('verification').textContent=(data.verification==='verified'?'Verified against published Delta versions':data.verification)+' · '+localClock(data.sensors[0].ts,replay?.airport_timezone||'America/Los_Angeles');$('verification').title=data.sensors[0].ts+' UTC';
   $('sensors').replaceChildren(...data.sensors.map((row:any)=>{const tr=document.createElement('tr');for(const value of [row.metric,row.value_num??row.value_str,row.warn===null?'—':`${row.warn} / ${row.crit}`,row.status]){const td=document.createElement('td');td.textContent=String(value);tr.append(td);}return tr;}));
   $('rule').textContent=data.rule+' · '+data.rule_mode;$('source-versions').textContent=`Run ${data.run_id.slice(0,8)} · push ${data.push_id.slice(0,12)} · minute ${data.step}\n`+Object.entries(data.delta_versions).map(([k,v])=>`${k} v${v}`).join(' · ');
-  $('audit-details').textContent=JSON.stringify({sensors:data.sensors,details:data.details},null,2);
+  $('audit-details').textContent=JSON.stringify({sensors:data.sensors,details:data.details},(key,value)=>key==='ts'&&typeof value==='string'?localClock(value,replay?.airport_timezone||'America/Los_Angeles'):value,2);
  }catch(error){if(ticket===provenanceGeneration&&epoch===generation)$('explanation').textContent='Evidence unavailable: '+String(error);}
 }
 let replay:any,frames=new Map<number,any>(),step=0,playing=false,timer:number|undefined;

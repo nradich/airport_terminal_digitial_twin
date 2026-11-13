@@ -1,6 +1,12 @@
 // Synthetic HTTP contract tests; the live project separately tests Delta and MLflow.
 import {test,expect} from '@playwright/test';
 import {placeLabels} from '../src/labels';
+import {countdown,localClock} from '../src/airport-clock';
+test('airport clock observes daylight saving and boarding close',()=>{
+ expect(localClock('2026-11-09T22:30:00','America/Los_Angeles')).toContain('2:30 PM PST');
+ expect(localClock('2026-07-09T22:30:00Z','America/Los_Angeles')).toContain('3:30 PM PDT');
+ expect([60,0.1,0,-1].map(countdown)).toEqual(['01:00','00:01','00:00','00:00']);
+});
 test('security markers and asset tags fit a phone camera viewport without intersection',()=>{
  const boxes=[60,22,22,22,65].map(width=>({x:1,y:4,width,height:23}));
  const placed=placeLabels(boxes,320,240);

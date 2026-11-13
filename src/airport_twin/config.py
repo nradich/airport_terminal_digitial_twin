@@ -16,8 +16,12 @@ class Config:
     platform: str = "databricks"
     tracking_uri: str = "databricks"
     registry_uri: str = "databricks-uc"
+    airport_timezone: str = "America/Los_Angeles"
 
     def __post_init__(self) -> None:
+        from zoneinfo import ZoneInfo
+
+        ZoneInfo(self.airport_timezone)
         for item in (self.catalog, self.schema):
             if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", item):
                 raise ValueError(f"Invalid UC identifier: {item!r}")
@@ -51,6 +55,7 @@ class Config:
             schema=os.getenv("TWIN_SCHEMA", "airport"),
             experiment=os.getenv("TWIN_EXPERIMENT", "/Shared/airport-twin"),
             platform=platform,
+            airport_timezone=os.getenv("TWIN_AIRPORT_TIMEZONE", "America/Los_Angeles"),
             tracking_uri=os.getenv("MLFLOW_TRACKING_URI", "databricks"),
             registry_uri=os.getenv("MLFLOW_REGISTRY_URI", "databricks-uc"),
         )
