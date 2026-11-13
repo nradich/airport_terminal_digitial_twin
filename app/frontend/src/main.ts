@@ -68,7 +68,8 @@ function preset(name:string){
  controls?.dispose();controls=new OrbitControls(camera,renderer.domElement);controls.target.copy(convert(data[3]));controls.enableDamping=true;controls.update();
 }
 function resize(){if(!renderer||!camera)return;const w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h);labelRenderer.setSize(w,h);if(camera instanceof THREE.PerspectiveCamera)camera.aspect=w/h;else{camera.top=45*h/w;camera.bottom=-camera.top;}camera.updateProjectionMatrix();}
-function showImage(reason:string){imageMode=true;const img=$('fallback') as HTMLImageElement;img.onerror=()=>{$('message').textContent='Frame unavailable for this publication';};img.src=apiPrefix+`/api/publications/${pub.audit.push_id}/frame.png`;img.style.display='block';renderer?.domElement.style.setProperty('display','none');labelRenderer.domElement.style.display='none';$('image').textContent='3D viewer';$('message').textContent=`${pub.image_type} · ${reason}`;}
+let auditedChip='';
+function showImage(reason:string){imageMode=true;const img=$('fallback') as HTMLImageElement;img.onerror=()=>{$('message').textContent='Frame unavailable for this publication';};img.src=apiPrefix+`/api/publications/${pub.audit.push_id}/frame.png`;img.style.display='block';renderer?.domElement.style.setProperty('display','none');labelRenderer.domElement.style.display='none';$('image').textContent='3D viewer';$('message').textContent=[auditedChip,pub.image_type,reason].filter(Boolean).join(' · ');}
 async function get(url:string,signal?:AbortSignal){const r=await fetch(apiPrefix+url,{signal});const data=await r.json();if(!r.ok)throw Object.assign(new Error(data.message||data.error||r.statusText),{status:r.status,code:data.error});return data;}
 let request:AbortController|undefined;
 let seekGeneration=0;
@@ -113,6 +114,7 @@ function ready(enabled:boolean){
  ($('image') as HTMLButtonElement).disabled=!enabled||auditUnavailable;
 }
 function clearEvidence(){
+ auditedChip='';
  setJourneyPublication('');
  ++provenanceGeneration;
  for(const id of ['metrics','health','sensors','verification','rule','source-versions','audit-details','thresholds','step'])$(id).replaceChildren();
@@ -132,7 +134,9 @@ function paint(frame:any,story=false){
  $('identity').textContent=`${active.run_name}\nRun ${active.run_id}\nPush ${frame.push_id.slice(0,12)}\nReplay ${replay.replay_id.slice(0,12)}`;
  $('metrics').replaceChildren(...Object.entries(frame.metrics).map(([key,value])=>{const p=document.createElement('p');p.textContent=`${key}: ${Number(value).toFixed(key==='avg_co2'?1:0)}`;return p;}));
  $('health').replaceChildren(...frame.states.filter((r:State)=>r.asset_id.startsWith('GATE_')).map((r:any)=>{const tr=document.createElement('tr');for(const [i,value] of [r.asset_id.replace('GATE_',''),r.status,r.pax_count].entries()){const td=document.createElement('td');if(i===0){const button=document.createElement('button');button.textContent=String(value);button.setAttribute('aria-label','Explain '+value);button.onclick=()=>void inspectGate(r.asset_id,true);td.append(button);}else td.textContent=String(value??'—');td.style.color=r.colour;tr.append(td);}return tr;}));
- $('message').textContent=`Audited minute ${step} · A4 ${frame.states.find((r:State)=>r.asset_id==='GATE_A4').status} · Security ${frame.states.find((r:State)=>r.asset_id==='SECURITY').status}${replay.thresholds_changed?' · Current thresholds differ; published thresholds retained':''}`;
+ const statusOf=(id:string)=>frame.states.find((r:State)=>r.asset_id===id).status;
+ auditedChip=`Audited minute ${frame.step} · A4 ${statusOf('GATE_A4')} · Security ${statusOf('SECURITY')}`;
+ $('message').textContent=auditedChip+(replay.thresholds_changed?' · Current thresholds differ; published thresholds retained':'');
  if(imageMode)showImage('Exact published minute '+step);
  if(!playing)void inspectGate(selectedGate);else{++provenanceGeneration;$('explanation').textContent='Pause to inspect this minute';for(const id of ['sensors','verification','source-versions','rule','audit-details'])$(id).replaceChildren();}
 }
@@ -199,7 +203,7 @@ async function select(run:Run){
  }catch(error){if(epoch===generation){$('status').textContent='Audit unavailable';if((error as any).code==='AUDIT_VERSION_UNAVAILABLE'&&pub){auditUnavailable=true;($('timeline') as HTMLInputElement).max=String(run.minutes-1);imageFrame(run.minutes-1);ready(true);}else{clearEvidence();ready(false);pub=undefined;replay=undefined;$('identity').textContent=`Run ${run.run_id} · replay unavailable`;$('message').textContent=(error as any).code==='REPLAY_NOT_FOUND'?'This replay is no longer available. Refresh the run list or choose another available run.':String(error);}}}
 }
 try{renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.outputColorSpace=THREE.SRGBColorSpace;stage.prepend(renderer.domElement);renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();if(pub)showImage('Graphics context lost');});scene.add(new THREE.HemisphereLight(0xffffff,0x7a8591,3));const light=new THREE.DirectionalLight(0xffffff,2);light.position.set(20,60,30);scene.add(light);renderer.setAnimationLoop(()=>{if(camera&&!imageMode){controls.update();renderer!.render(scene,camera);labelRenderer.render(scene,camera);layoutLabels(labelRenderer.domElement);}});}catch{renderer=undefined;}
-$('overview').onclick=()=>{preset('Overview');resize();};$('closeup').onclick=()=>{preset('A4CloseUp');resize();};$('image').onclick=()=>{if(imageMode&&renderer&&model){imageMode=false;renderer.domElement.style.display='block';labelRenderer.domElement.style.display='block';$('fallback').style.display='none';$('image').textContent='Image playback';$('message').textContent='Live SQL state';}else if(pub)showImage('Selected');};new ResizeObserver(resize).observe(stage);
+$('overview').onclick=()=>{preset('Overview');resize();};$('closeup').onclick=()=>{preset('A4CloseUp');resize();};$('image').onclick=()=>{if(imageMode&&renderer&&model){imageMode=false;renderer.domElement.style.display='block';labelRenderer.domElement.style.display='block';$('fallback').style.display='none';$('image').textContent='Image playback';$('message').textContent=auditedChip;}else if(pub)showImage('Selected');};new ResizeObserver(resize).observe(stage);
 if(renderer){
  let pointerDown:[number,number]=[0,0];
  renderer.domElement.addEventListener('pointerdown',event=>{pointerDown=[event.clientX,event.clientY];});

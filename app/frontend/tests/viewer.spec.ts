@@ -3,6 +3,26 @@ import {createHash} from 'node:crypto';
 let baselineId:string,delayId:string,longRunId:string;
 test.beforeAll(async({request})=>{const rows=await (await request.get('/api/runs')).json();const paired=rows.find((r:any)=>r.comparison?.baseline_run_id);if(!paired)throw new Error('Publish an explicit filming pair first');baselineId=paired.comparison.baseline_run_id;delayId=paired.comparison.delay_run_id;longRunId=rows.find((r:any)=>r.minutes===120)?.run_id;});
 const hash=(buffer:Buffer)=>createHash('sha256').update(buffer).digest('hex');
+test('busiest minute chip and mesh colours match the audited latest_state frame',async({page,request})=>{
+ const base='/api/runs/'+delayId;
+ const [replay]=await (await request.get(base+'/replays')).json();
+ const query='?replay_id='+replay.replay_id;
+ const {step}=await (await request.get(base+'/busiest'+query)).json();
+ const {frames}=await (await request.get(base+'/timeline'+query+'&start_step='+step+'&end_step='+(step+1))).json();
+ const states=frames[0].states;
+ const status=(id:string)=>states.find((s:{asset_id:string})=>s.asset_id===id).status;
+ const chip=`Audited minute ${step} · A4 ${status('GATE_A4')} · Security ${status('SECURITY')}`;
+ await page.goto('/?run='+delayId+'&minute=5');
+ await expect(page.locator('#step')).toHaveText('Minute 5 / 59');
+ await page.getByRole('button',{name:'Jump to busiest minute'}).click();
+ await expect(page.locator('#message')).toContainText(chip);
+ const painted=JSON.parse((await page.locator('canvas').getAttribute('data-asset-states'))!);
+ for(const row of states)expect(painted).toContainEqual({asset_id:row.asset_id,status:row.status,colour:row.colour.toLowerCase()});
+ await page.getByRole('button',{name:'Image playback'}).click();
+ await expect(page.locator('#message')).toContainText(chip);
+ await page.getByRole('button',{name:'3D viewer'}).click();
+ await expect(page.locator('#message')).toContainText(chip);
+});
 test.afterEach(async({context})=>{for(const page of context.pages())await page.unrouteAll({behavior:'ignoreErrors'});await context.unrouteAll({behavior:'ignoreErrors'});});
 
 test('live GLB has ten labels and independent governed colours, orbit and presets',async({page})=>{
