@@ -126,6 +126,7 @@ test('live publication explains five SQL sensor rows and comparison opens the ex
  await expect(page.locator('#explanation')).toHaveText('213 passengers ≥ critical threshold 180');
  await expect(page.locator('#sensors tr')).toHaveCount(5);
  await expect(page.locator('#provenance-details')).not.toHaveAttribute('open','');
+ await page.locator('#gate-diagnostics > summary').click();
  await page.getByRole('button',{name:'Explain A1',exact:true}).click();
  await expect(page.locator('#explanation')).toContainText('healthy');
  await page.getByRole('button',{name:'Explain A4',exact:true}).click();

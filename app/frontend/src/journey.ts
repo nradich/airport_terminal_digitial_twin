@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {journeyMap} from './journey-map';
 
 type Arm = { probability:number; ci:number[]; p50:number; p90:number; bins:number[];
   means:Record<string,number>; sample:Record<string,number> };
@@ -12,30 +13,46 @@ const percent = (p:number) => (100*p).toFixed(1)+'%';
 const minutes = (s:number) => (s/60).toFixed(1)+' min';
 
 export function journeyPanel(scene:THREE.Scene, load:(id:string)=>Promise<Experiment[]>,
+                             durations:(run:string,params:URLSearchParams)=>Promise<
+                               {lanes:number;histogram:{seconds:number;n:number}[]}[]>,
                              gatePoint:(id:string)=>THREE.Vector3|undefined, pause:()=>void) {
   const panel=document.createElement('section');
-  panel.innerHTML=`<h3>Will I make my flight?</h3><button data-load disabled>Explore this minute</button>
+  panel.innerHTML=`<h2>Will I make my flight?</h2><button data-load disabled>Explore this minute</button>
     <p data-status aria-live="polite"></p><div data-controls hidden>
-    <label>Recorded flight and run<select data-run></select></label>
+    <label>Flight<select data-run></select></label>
+    <div><label>I arrive <input data-arrival type="number" min="0" max="1440" step="1" required> minutes</label>
+    <label><select data-reference aria-label="Arrival time reference">
+    <option value="close">before boarding closes</option><option value="departure">before departure</option>
+    </select></label></div>
     <label>Checkpoint<select data-kind><option value="standard">Standard security</option>
     <option value="precheck">TSA PreCheck</option></select></label>
     <label><input type="checkbox" data-bag checked> Checked bag</label>
     <label><input type="checkbox" data-coffee> Coffee</label>
     <label><input type="checkbox" data-restroom> Restroom</label>
-    <p data-outcome></p><table><caption>Journey time distribution · trial counts</caption>
+    <p data-outcome aria-live="polite"></p><ol data-route aria-label="Route through the terminal"></ol>
+    <label>Replay trial 1<select data-arm><option>Baseline</option><option>Additional lane</option></select></label>
+    <button data-play>Play passenger journey</button><p data-clock aria-live="off"></p>
+    <details><summary>Journey times and bottlenecks</summary><table><caption>Journey time distribution · trial counts</caption>
     <thead><tr><th>Minutes</th><th>Baseline</th><th>+1 lane</th></tr></thead><tbody></tbody></table>
-    <p data-bottleneck></p><label>Replay trial 1<select data-arm><option>Baseline</option>
-    <option>Additional lane</option></select></label><button data-play>Play passenger journey</button>
-    <p data-clock aria-live="off"></p><a data-link target="_blank" rel="noopener">Journey in MLflow</a>
+    <p data-bottleneck></p></details><a data-link target="_blank" rel="noopener">Journey in MLflow</a>
     <details><summary>Model assumptions</summary><p>Queue mix, service times and stop locations are synthetic.
     The queue stays fixed until this passenger joins it. Each lane starts available.
     Times below are minimum, most likely and maximum seconds.</p><pre style="white-space:pre-wrap" data-policy></pre></details></div>`;
-  document.getElementById('metrics')!.before(panel);
+  document.getElementById('planner')!.append(panel);
   const el=<T extends HTMLElement>(key:string)=>panel.querySelector<T>('[data-'+key+']')!;
   const run=el<HTMLSelectElement>('run'), kind=el<HTMLSelectElement>('kind'), arm=el<HTMLSelectElement>('arm');
   const checked=(k:string)=>el<HTMLInputElement>(k).checked;
   let id='', generation=0, frame=0, experiments:Experiment[]=[];
   let chosen:Profile, experiment:Experiment;
+  const map=journeyMap(scene,gatePoint);
+  const arrival=el<HTMLInputElement>('arrival'),reference=el<HTMLSelectElement>('reference');
+  const play=el<HTMLButtonElement>('play');
+  let budget=0, request=0,sourceTimer=0;
+  const cache=new Map<string,ReturnType<typeof durations>>();
+  function activeStep(index:number){
+    map.highlight(index);
+    Array.from(el('route').children).forEach((item,i)=>item.classList.toggle('active',i===index));
+  }
   const group=new THREE.Group();
   scene.add(group);
   const person=new THREE.Mesh(new THREE.CapsuleGeometry(.53,1.4),new THREE.MeshStandardMaterial({color:0x44edf2}));
@@ -45,9 +62,12 @@ export function journeyPanel(scene:THREE.Scene, load:(id:string)=>Promise<Experi
   function stop() {
     cancelAnimationFrame(frame); group.visible=false; el('clock').textContent='';
     el('play').textContent='Play passenger journey'; frame=0;
+    activeStep(-1);
   }
   function selectPublication(next:string) {
     ++generation; id=next; stop(); experiments=[]; el('controls').hidden=true;
+    ++request;clearTimeout(sourceTimer);cache.clear();map.clear();
+    if(next){map.locate();sourceTimer=window.setTimeout(()=>void read(false),550);}
     el('status').textContent=''; el<HTMLButtonElement>('load').disabled=!next;
   }
   function render() {
@@ -55,12 +75,17 @@ export function journeyPanel(scene:THREE.Scene, load:(id:string)=>Promise<Experi
     chosen=experiment.profiles.find(p=>p.kind===kind.value && p.bag===checked('bag') &&
       p.coffee===checked('coffee') && p.restroom===checked('restroom'))!;
     const {inputs}=experiment, [base,extra]=chosen.arms;
-    el('status').textContent=inputs.flight+' · '+inputs.gate.replace('GATE_','')+' · '+
-      minutes(inputs.budget)+' from entry to boarding close ('+inputs.close.slice(11,16)+' UTC).';
-    el('outcome').textContent=chosen.ahead+' ahead · '+chosen.lanes+' → '+(chosen.lanes+1)+' lanes. '+
-      'Chance of making boarding: '+percent(base.probability)+' → '+percent(extra.probability)+
-      ' (+'+(100*chosen.gain).toFixed(1)+' points). Median '+minutes(base.p50)+' → '+minutes(extra.p50)+
-      '. 90th percentile '+minutes(base.p90)+' → '+minutes(extra.p90)+'.';
+    const buffer=Number(inputs.policy.boarding_buffer_minutes??15);
+    el('status').textContent=inputs.flight+' · Gate '+inputs.gate.replace('GATE_','')+
+      ' · Boarding closes '+inputs.close.slice(11,16)+' UTC, '+buffer+' min before departure. Queue frozen at '+
+      (inputs.entry?.slice(11,16)||'recorded entry')+' UTC.';
+    const keys=Object.keys(labels).filter(k=>k in base.sample);
+    map.route(keys,inputs.gate);
+    el('route').replaceChildren(...['Arrive at terminal',...keys.map(k=>k==='walk'?
+      'Walk to '+inputs.gate.replace('GATE_',''):labels[k])].map(label=>{
+      const li=document.createElement('li');li.textContent=label;return li;
+    }));
+    void estimate();
     const body=panel.querySelector('tbody')!; body.replaceChildren();
     for(let i=0;i<Math.max(base.bins.length,extra.bins.length);i++) {
       const tr=body.insertRow();
@@ -70,52 +95,82 @@ export function journeyPanel(scene:THREE.Scene, load:(id:string)=>Promise<Experi
     el('bottleneck').textContent='Longest average stage: '+bottleneck(base)+' → '+bottleneck(extra)+'.';
     el<HTMLAnchorElement>('link').href=experiment.url;
     el('policy').textContent=inputs.trials+' paired trials. Frozen queue: '+inputs.queue+
-      '.\n95% sampling intervals: '+base.ci.map(percent).join('–')+' / '+extra.ci.map(percent).join('–')+
+      '.\n95% intervals at original recorded entry: '+base.ci.map(percent).join('–')+' / '+extra.ci.map(percent).join('–')+
       '.\n'+Object.entries(inputs.policy).map(([k,v])=>k.replaceAll('_',' ')+': '+v).join('\n');
   }
-  el('load').onclick=async()=>{
-    pause(); const ticket=++generation; stop(); el('controls').hidden=true;
+  async function estimate(){
+    const ticket=++request;
+    stop();play.disabled=true;
+    if(!arrival.validity.valid){el('outcome').textContent='Enter a whole number from 0 to 1440 minutes.';return;}
+    const buffer=reference.value==='departure'?Number(experiment.inputs.policy.boarding_buffer_minutes??15):0;
+    budget=(arrival.valueAsNumber-buffer)*60;
+    let chances=chosen.arms.map(a=>a.probability);
+    if(budget!==experiment.inputs.budget){
+      const query=new URLSearchParams({checkpoint:chosen.kind,bag:String(chosen.bag),
+        coffee:String(chosen.coffee),restroom:String(chosen.restroom)});
+      const key=experiment.run_id+'/'+query;
+      el('outcome').textContent='Checking recorded journey times…';
+      try{
+        if(!cache.has(key))cache.set(key,durations(experiment.run_id,query));
+        const rows=await cache.get(key)!;
+        if(ticket!==request)return;
+        if(rows.length!==2)throw Error('Incomplete staffing pair');
+        chances=rows.map((arm,i)=>{
+          if(arm.lanes!==chosen.lanes+i || arm.histogram.reduce((s,b)=>s+b.n,0)!==experiment.inputs.trials)
+            throw Error('Incomplete trial distribution');
+          return arm.histogram.reduce((s,b)=>s+(b.seconds<=budget?b.n:0),0)/experiment.inputs.trials;
+        });
+      }catch{if(ticket===request){cache.delete(key);el('outcome').textContent='Recorded trial times unavailable. Try again.';}return;}
+    }
+    play.disabled=false;
+    el('outcome').textContent=(budget<0?'Boarding closed '+minutes(-budget)+' before arrival. ':
+      'You have '+minutes(budget)+' to reach the gate. ')+
+      'Chance of making boarding: '+percent(chances[0])+' with '+chosen.lanes+
+      (chosen.lanes===1?' lane':' lanes')+', or '+percent(chances[1])+' with one extra lane. '+
+      chosen.ahead+' ahead of you in '+(chosen.kind==='standard'?'standard security.':'TSA PreCheck.');
+  }
+  async function read(manual:boolean){
+    clearTimeout(sourceTimer);if(manual)pause(); const ticket=++generation; stop(); el('controls').hidden=true;
     el('status').textContent='Reading recorded journeys…';
     try { const data=await load(id); if(ticket!==generation)return;
       experiments=data;
       if(!data.length){el('status').textContent='No journey recorded for this minute.';return;}
       run.replaceChildren(...data.map(e=>new Option(e.inputs.flight+' · '+e.run_id.slice(0,8),e.run_id)));
+      arrival.value=String(Math.max(0,data[0].inputs.budget/60));reference.value='close';
       el('controls').hidden=false;render();
     } catch {if(ticket===generation)el('status').textContent='Journey data unavailable for this minute.';}
-  };
-  panel.onchange=render;
+  }
+  el('load').onclick=()=>void read(true);
+  arrival.oninput=()=>void estimate();
+  panel.onchange=(e)=>{if(e.target!==arrival)render();};
   el('play').onclick=()=>{
     if(frame){stop();return;}
     pause();
-    const dest=gatePoint(experiment.inputs.gate);
-    const gate=dest || new THREE.Vector3(0,1,0);
-    const points:Record<string,THREE.Vector3>={bag:new THREE.Vector3(-8,1.5,5),
-      security_wait:new THREE.Vector3(-12,1.5,4.5),screening:new THREE.Vector3(-10,1.5,0),
-      coffee:new THREE.Vector3(5,1.5,3),restroom:new THREE.Vector3(15,1.5,-3),
-      walk:new THREE.Vector3(gate.x,1.5,gate.z*.65)};
+    const points=map.points;
     const segments=Object.entries(chosen.arms[arm.selectedIndex].sample)
       .sort(([a],[b])=>Object.keys(labels).indexOf(a)-Object.keys(labels).indexOf(b));
     const total=segments.reduce((s,[,d])=>s+d,0), start=performance.now();
-    const entry=new THREE.Vector3(-6,1.5,7), matrix=new THREE.Matrix4();
-    group.visible=!!dest; el('play').textContent='Stop passenger replay';
+    const entry=points.entry, matrix=new THREE.Matrix4();
+    group.visible=!!gatePoint(experiment.inputs.gate); el('play').textContent='Stop passenger replay';
     function animate(now:number) {
       const t=Math.min(total,(now-start)*.06); // 60 simulated seconds per wall second
       let elapsed=0, from=entry;
       for(const [key,duration] of segments) {
         if(t<=elapsed+duration || key==='walk'){
           const f=Math.min(1,(t-elapsed)/Math.max(1,duration));
-          person.position.lerpVectors(from,points[key],key==='walk'?f:Math.min(1,f*6));
+          activeStep(segments.findIndex(([stage])=>stage===key)+1);
+          if(group.visible){person.position.lerpVectors(from,points[key],key==='walk'?f:Math.min(1,f*6));person.position.y=1.5;}
           crowd.count=key==='security_wait'?Math.min(100,Math.ceil(chosen.ahead*(1-f))):0;
           for(let i=0;i<crowd.count;i++) crowd.setMatrixAt(i,matrix.makeTranslation(-14+(i%6)*.6,.7,4.8+Math.floor(i/6)*.62));
           crowd.instanceMatrix.needsUpdate=true;crowd.computeBoundingSphere();
-          el('clock').textContent=labels[key]+' · '+minutes(t)+' elapsed · '+minutes(experiment.inputs.budget-t)+' to close';
+          el('clock').textContent=labels[key]+' · '+minutes(t)+' elapsed · '+minutes(budget-t)+' to close';
           break;
         }
         elapsed+=duration;from=points[key];
       }
       if(t<total)frame=requestAnimationFrame(animate);
       else{frame=0;el('play').textContent='Replay passenger journey';el('clock').textContent=
-        (total<=experiment.inputs.budget?'Made boarding':'Missed boarding')+' · '+minutes(total)+' elapsed';}
+        (total<=budget?'Made boarding':'Missed boarding')+' · '+minutes(total)+' elapsed';}
     }
     frame=requestAnimationFrame(animate);
   };

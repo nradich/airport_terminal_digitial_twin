@@ -52,6 +52,11 @@ targets:
                 securable_type: TABLE
                 securable_full_name: ${var.catalog}.${var.schema}.journey_experiments
                 permission: SELECT
+            - name: journey-trials-table
+              uc_securable:
+                securable_type: TABLE
+                securable_full_name: ${var.catalog}.${var.schema}.journey_trials
+                permission: SELECT
             - name: latest-state-view
               uc_securable:
                 securable_type: TABLE

@@ -4,8 +4,8 @@ import json
 from pathlib import Path
 
 from airport_twin.data import ASSETS, THRESHOLDS
-from airport_twin.layout import CAMERAS
 from airport_twin.journey import Policy, simulate
+from airport_twin.layout import CAMERAS
 from airport_twin.presentation import asset_labels
 from airport_twin.scene.glb import glb_bytes
 

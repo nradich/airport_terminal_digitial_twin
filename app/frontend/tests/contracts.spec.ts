@@ -13,6 +13,17 @@ test('recorded passenger choices and paired replay clear on minute change',async
  await page.getByLabel('Checkpoint').selectOption('precheck');
  await page.getByLabel('Coffee',{exact:true}).check();
  await expect(page.locator('[data-outcome]')).toContainText('10 ahead');
+ await page.route('**/durations?**',route=>route.fulfill({json:[
+   {lanes:1,histogram:[{seconds:900,n:30},{seconds:901,n:70}]},
+   {lanes:2,histogram:[{seconds:900,n:60},{seconds:901,n:40}]},
+ ]}));
+ await page.getByRole('spinbutton').fill('15');
+ await expect(page.locator('[data-outcome]')).toContainText('30.0% with 1 lane');
+ await page.getByLabel('Arrival time reference').selectOption('departure');
+ await expect(page.locator('[data-outcome]')).toContainText('0.0 min to reach the gate');
+ await expect(page.locator('[data-outcome]')).toContainText('0.0% with 1 lane');
+ await expect(page.locator('[data-route]')).toContainText('Coffee');
+ await expect(page.locator('#gate-diagnostics')).not.toHaveAttribute('open','');
  await page.getByLabel('Replay trial 1').selectOption({index:1});
  await page.getByRole('button',{name:'Play passenger journey'}).click();
  await expect(page.locator('[data-clock]')).toContainText('Bag drop');
@@ -42,6 +53,7 @@ test('tight provenance, accessible selection, geometry picking and explicit comp
  await expect(page.locator('#sensors tr')).toHaveCount(5);
  await expect(page.locator('#provenance-details')).not.toHaveAttribute('open','');
  await expect(page.locator('#compare')).toHaveAttribute('href',/compare-runs.*aaaaaaaa.*bbbbbbbb/);
+ await page.locator('#gate-diagnostics > summary').click();
  await page.getByRole('button',{name:'Explain A1',exact:true}).click();
  await expect(page.locator('#gate-title')).toContainText('A1');
  await page.getByRole('button',{name:'Gate A4 close-up'}).click();

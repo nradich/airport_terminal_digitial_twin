@@ -117,6 +117,26 @@ def provenance(push_id: str, asset_id: str):
     return gate_provenance(app.state.data, push_id, asset_id)
 
 
+@app.get("/api/journeys/{run_id}/durations")
+def journey_durations(run_id: str, checkpoint: str, bag: bool, coffee: bool, restroom: bool):
+    import json
+
+    from airport_twin.tracking import assert_run
+
+    data = app.state.data
+    run = assert_run(data.config, run_id)
+    if run.info.status != "FINISHED" or not run.data.tags.get("journey.push_id"):
+        raise ReadError("JOURNEY_NOT_FOUND", status=404)
+    rows = data.sql.read("journey_durations", dict(
+        run_id=run_id, checkpoint=checkpoint, bag=int(bag),
+        coffee=int(coffee), restroom=int(restroom),
+    ))
+    for row in rows:
+        if isinstance(row["histogram"], str):
+            row["histogram"] = json.loads(row["histogram"])
+    return rows
+
+
 @app.get("/api/publications/{push_id}/frame.png")
 def frame(push_id: str):
     return Response(app.state.data.frame(push_id), media_type="image/png")

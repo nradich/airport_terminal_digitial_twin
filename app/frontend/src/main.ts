@@ -53,6 +53,7 @@ let controls:OrbitControls;
 const labelRenderer=new CSS2DRenderer();labelRenderer.domElement.style.cssText='position:absolute;top:0;pointer-events:none';stage.append(labelRenderer.domElement);
 const assets=new Map<string,THREE.Mesh>();
 const setJourneyPublication=journeyPanel(scene, id=>get('/api/publications/'+id+'/journeys'),
+ (run,params)=>get('/api/journeys/'+run+'/durations?'+params),
  id=>assets.get(id)?.getWorldPosition(new THREE.Vector3()), ()=>pause(false));
 let model:THREE.Group|undefined, pub:any, active:Run, generation=0, imageMode=false;
 const convert=(p:number[])=>new THREE.Vector3(p[0],p[2],-p[1]);
@@ -71,7 +72,7 @@ let request:AbortController|undefined;
 let seekGeneration=0;
 let selectedGate='GATE_A4',provenanceGeneration=0;
 async function inspectGate(assetId:string,reveal=false){
- if(reveal)$('provenance').scrollIntoView({block:'start',behavior:'smooth'});
+ if(reveal){($('gate-diagnostics') as HTMLDetailsElement).open=true;$('provenance').scrollIntoView({block:'start',behavior:'smooth'});}
  selectedGate=assetId;persistState();const ticket=++provenanceGeneration,epoch=generation,push=pub?.audit.push_id;
  if(!push)return;$('gate-title').textContent=assetId.replace('GATE_','')+' · Why this color?';$('explanation').textContent='Checking publication evidence…';for(const id of ['sensors','verification','rule','source-versions','audit-details'])$(id).replaceChildren();
  try{const data=await get(`/api/publications/${push}/assets/${assetId}/provenance`,request?.signal);
