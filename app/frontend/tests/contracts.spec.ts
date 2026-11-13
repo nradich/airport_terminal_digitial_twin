@@ -26,6 +26,15 @@ test('recorded passenger choices and paired replay clear on minute change',async
  await expect(page.locator('#status')).toHaveText('Unity Catalog connected');
  await page.getByRole('button',{name:'Explore this minute'}).click();
  await expect(page.locator('[data-outcome]')).toContainText('30 ahead');
+ expect(await page.locator('body').innerText()).not.toMatch(/[{}]/);
+ const style=await page.locator('.chance').first().evaluate(el=>{
+   const css=getComputedStyle(el);
+   return {size:parseFloat(css.fontSize),weight:Number(css.fontWeight),color:css.color,
+     band:el.classList[1]};
+ });
+ expect(style.size).toBeGreaterThanOrEqual(28);expect(style.weight).toBeGreaterThanOrEqual(700);
+ expect(style.color).toBe(({likely:'rgb(34, 197, 94)',uncertain:'rgb(245, 158, 11)',
+   unlikely:'rgb(251, 119, 119)'} as Record<string,string>)[style.band]);
  await page.getByLabel('Checkpoint').selectOption('precheck');
  await page.getByLabel('Coffee',{exact:true}).check();
  await expect(page.locator('[data-outcome]')).toContainText('10 ahead');
