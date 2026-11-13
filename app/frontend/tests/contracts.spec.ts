@@ -49,6 +49,8 @@ test('recorded passenger choices and paired replay clear on minute change',async
  await page.getByLabel('Arrival time reference').selectOption('departure');
  await expect(page.locator('[data-outcome]')).toContainText('0.0 min to reach the gate');
  await expect(page.locator('.chance').first()).toHaveText('0.0%');
+ await expect(page.locator('.chance')).toHaveCount(1);
+ await expect(page.locator('[data-outcome]')).toContainText("An extra lane wouldn't change your odds");
  await expect(page.locator('[data-route]')).toContainText('Coffee');
  await expect(page.locator('#gate-diagnostics')).not.toHaveAttribute('open','');
  await page.getByLabel('Replay trial 1').selectOption({index:1});

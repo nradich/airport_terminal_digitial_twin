@@ -143,7 +143,11 @@ export function journeyPanel(scene:THREE.Scene, load:(id:string)=>Promise<Experi
     outcome.replaceChildren();
     const title=document.createElement('strong');title.textContent='Chance of making boarding';
     const cards=document.createElement('div');cards.className='chance-pair';outcome.append(title,cards);
-    chances.forEach((chance,i)=>{
+    const trials=experiment.inputs.trials;
+    const extraSuccesses=Math.round(chances[1]*trials)-Math.round(chances[0]*trials);
+    const similar=Math.abs(extraSuccesses)*100<trials;
+    const figures=similar?chances.slice(0,1):chances;
+    figures.forEach((chance,i)=>{
       const card=document.createElement('div'), value=document.createElement('strong');
       value.textContent=percent(chance);
       const caption=document.createElement('span');
@@ -153,6 +157,7 @@ export function journeyPanel(scene:THREE.Scene, load:(id:string)=>Promise<Experi
       card.append(value,caption,runLink('Open in MLflow'));cards.append(card);
     });
     const detail=document.createElement('p');outcome.append(detail);
+    if(similar)detail.append("An extra lane wouldn't change your odds. ");
     detail.append(support+chosen.ahead+' ahead of you in '+(chosen.kind==='standard'?'standard security.':'TSA PreCheck.'));
   }
   async function read(manual:boolean){
