@@ -1,5 +1,15 @@
 // Synthetic HTTP contract tests; the live project separately tests Delta and MLflow.
 import {test,expect} from '@playwright/test';
+import {placeLabels} from '../src/labels';
+test('security markers and asset tags fit a phone camera viewport without intersection',()=>{
+ const boxes=[60,22,22,22,65].map(width=>({x:1,y:4,width,height:23}));
+ const placed=placeLabels(boxes,320,240);
+ for(const [i,b] of placed.entries()){
+   expect(b.x).toBeGreaterThanOrEqual(0);expect(b.y+b.height).toBeLessThanOrEqual(240);
+   for(const p of placed.slice(0,i))expect(b.x+b.width<=p.x || p.x+p.width<=b.x ||
+     b.y+b.height<=p.y || p.y+p.height<=b.y).toBeTruthy();
+ }
+});
 import {readFile} from 'node:fs/promises';
 const ids=['a'.repeat(32),'b'.repeat(32)];
 let metadata:any;

@@ -1,3 +1,4 @@
+import {layoutLabels} from './labels';
 import * as THREE from 'three';
 import {journeyPanel} from './journey';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
@@ -180,7 +181,7 @@ async function select(run:Run){
   if(run.minutes>60)void pageAt(0,epoch).catch(()=>{});
  }catch(error){if(epoch===generation){$('status').textContent='Audit unavailable';if((error as any).code==='AUDIT_VERSION_UNAVAILABLE'&&pub){auditUnavailable=true;($('timeline') as HTMLInputElement).max=String(run.minutes-1);imageFrame(run.minutes-1);ready(true);}else{clearEvidence();ready(false);pub=undefined;replay=undefined;$('identity').textContent=`Run ${run.run_id} · replay unavailable`;$('message').textContent=(error as any).code==='REPLAY_NOT_FOUND'?'This replay is no longer available. Refresh the run list or choose another available run.':String(error);}}}
 }
-try{renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.outputColorSpace=THREE.SRGBColorSpace;stage.prepend(renderer.domElement);renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();if(pub)showImage('Graphics context lost');});scene.add(new THREE.HemisphereLight(0xffffff,0x7a8591,3));const light=new THREE.DirectionalLight(0xffffff,2);light.position.set(20,60,30);scene.add(light);renderer.setAnimationLoop(()=>{if(camera&&!imageMode){controls.update();renderer!.render(scene,camera);labelRenderer.render(scene,camera);}});}catch{renderer=undefined;}
+try{renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.outputColorSpace=THREE.SRGBColorSpace;stage.prepend(renderer.domElement);renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();if(pub)showImage('Graphics context lost');});scene.add(new THREE.HemisphereLight(0xffffff,0x7a8591,3));const light=new THREE.DirectionalLight(0xffffff,2);light.position.set(20,60,30);scene.add(light);renderer.setAnimationLoop(()=>{if(camera&&!imageMode){controls.update();renderer!.render(scene,camera);labelRenderer.render(scene,camera);layoutLabels(labelRenderer.domElement);}});}catch{renderer=undefined;}
 $('overview').onclick=()=>{preset('Overview');resize();};$('closeup').onclick=()=>{preset('A4CloseUp');resize();};$('image').onclick=()=>{if(imageMode&&renderer&&model){imageMode=false;renderer.domElement.style.display='block';labelRenderer.domElement.style.display='block';$('fallback').style.display='none';$('image').textContent='Image playback';$('message').textContent='Live SQL state';}else if(pub)showImage('Selected');};new ResizeObserver(resize).observe(stage);
 if(renderer){
  let pointerDown:[number,number]=[0,0];
