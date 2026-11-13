@@ -102,8 +102,15 @@ export function journeyPanel(scene:THREE.Scene, load:(id:string)=>Promise<Experi
     el('bottleneck').textContent='Longest average stage: '+bottleneck(base)+' → '+bottleneck(extra)+'.';
     el<HTMLAnchorElement>('link').href=experiment.url;
     el('policy').textContent=inputs.trials+' paired trials. Frozen queue: '+inputs.queue+
-      '.\n95% intervals at original recorded entry: '+base.ci.map(percent).join('–')+' / '+extra.ci.map(percent).join('–')+
-      '.\n'+Object.entries(inputs.policy).map(([k,v])=>k.replaceAll('_',' ')+': '+v).join('\n');
+      '.\n95% intervals at original recorded entry: ';
+    el('policy').append(runLink(base.ci.map(percent).join('–')),' / ',runLink(extra.ci.map(percent).join('–')),
+      '.\n'+Object.entries(inputs.policy).map(([k,v])=>k.replaceAll('_',' ')+': '+v).join('\n'));
+  }
+  function runLink(label:string){
+    const link=document.createElement('a');
+    link.href=experiment.url;link.target='_blank';link.rel='noopener';
+    link.textContent=label;link.title='MLflow run '+experiment.run_id.slice(0,8);
+    return link;
   }
   async function estimate(){
     const ticket=++request;
@@ -130,11 +137,15 @@ export function journeyPanel(scene:THREE.Scene, load:(id:string)=>Promise<Experi
       }catch{if(ticket===request){cache.delete(key);el('outcome').textContent='Recorded trial times unavailable. Try again.';}return;}
     }
     play.disabled=false;
-    el('outcome').textContent=(budget<0?'Boarding closed '+minutes(-budget)+' before arrival. ':
+    const outcome=el('outcome');
+    outcome.textContent=(budget<0?'Boarding closed '+minutes(-budget)+' before arrival. ':
       'You have '+minutes(budget)+' to reach the gate. ')+
-      'Chance of making boarding: '+percent(chances[0])+' with '+chosen.lanes+
-      (chosen.lanes===1?' lane':' lanes')+', or '+percent(chances[1])+' with one extra lane. '+
-      chosen.ahead+' ahead of you in '+(chosen.kind==='standard'?'standard security.':'TSA PreCheck.');
+      'Chance of making boarding: ';
+    chances.forEach((chance,i)=>{
+      outcome.append(runLink(percent(chance)),i===0?' with '+chosen.lanes+(chosen.lanes===1?' lane':' lanes'):' with one extra lane',
+        ' (',runLink('Open in MLflow'),i===0?'), or ':'). ');
+    });
+    outcome.append(chosen.ahead+' ahead of you in '+(chosen.kind==='standard'?'standard security.':'TSA PreCheck.'));
   }
   async function read(manual:boolean){
     clearTimeout(sourceTimer);if(manual)pause(); const ticket=++generation; stop(); el('controls').hidden=true;
