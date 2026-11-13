@@ -16,6 +16,22 @@ export function journeyMap(scene:THREE.Scene, gatePoint:(id:string)=>THREE.Vecto
     screening:new THREE.Vector3(-10,.3,0)};
   const lineMaterial=new THREE.LineBasicMaterial({color:0x75eced,depthTest:false});
   const amenities=new THREE.Group();layer.add(amenities);
+  // The passenger waits on the aisle side of the departures counter.
+  const bagDrop=new THREE.Group();
+  bagDrop.position.set(points.bag.x,0,points.bag.z-1.7);
+  amenities.add(bagDrop);
+  function counterPart(size:[number,number,number], position:[number,number,number], color:number) {
+    const part=new THREE.Mesh(new THREE.BoxGeometry(...size),new THREE.MeshStandardMaterial({color}));
+    part.position.set(...position);bagDrop.add(part);
+  }
+  counterPart([4.6,.12,2.8],[0,.06,0],0x405968);
+  counterPart([2,1.1,1.3],[-1,.66,0],0x138286);
+  counterPart([2.2,.16,1.5],[-1,1.29,0],0xc4e9e3);
+  counterPart([1.9,.45,1.2],[1.1,.35,0],0x34404c);
+  counterPart([.76,.78,.48],[1.1,.97,0],0xf0a344);
+  counterPart([.35,.16,.13],[1.1,1.43,0],0x44382d);
+  const bagSign=sign(stageNames.bag,'amenity-sign');
+  bagSign.position.set(-1,2.6,0);bagDrop.add(bagSign);
   function building(key:string,colour:number) {
     const site=new THREE.Group();
     function box(w:number,h:number,d:number,y:number, shade:number,z=0) {
