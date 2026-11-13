@@ -35,8 +35,39 @@ def build_query(name: str, parameters: dict, config: Config) -> ReadQuery:
         if parameters:
             raise ValueError("This query takes no parameters")
         return ReadQuery(plain[name], {})
-    if name in {"history", "raw_history", "raw_count", "asset_provenance"}:
+    if name in {"history", "raw_history", "raw_count", "asset_provenance", "busiest"}:
         return history_query(name, parameters, config)
+    if name == "journey_publications" and set(parameters) == {"run_id"}:
+        if not re.fullmatch(r"[0-9a-f]{32}", parameters["run_id"]):
+            raise ValueError("Invalid source run")
+        return ReadQuery(
+            f"SELECT DISTINCT push_id FROM {c}.journey_experiments WHERE source_run=:run_id",
+            parameters,
+        )
+    if name == "journeys" and set(parameters) == {"push_id"}:
+        if not re.fullmatch(r"[0-9a-f]{64}", parameters["push_id"]):
+            raise ValueError("Invalid journey publication")
+        return ReadQuery(
+            f"SELECT run_id, source_run, input_json, summary_json FROM {c}.journey_experiments "
+            "WHERE push_id=:push_id ORDER BY flight_id, run_id LIMIT 32", parameters,
+        )
+    if name == "journey_durations" and set(parameters) == {
+        "run_id", "checkpoint", "bag", "coffee", "restroom"
+    }:
+        if (not re.fullmatch(r"[0-9a-f]{32}", parameters["run_id"])
+                or parameters["checkpoint"] not in {"standard", "precheck"}
+                or any(type(parameters[k]) is not int or parameters[k] not in (0, 1)
+                       for k in ("bag", "coffee", "restroom"))):
+            raise ValueError("Invalid journey profile")
+        return ReadQuery(
+            "SELECT lanes, to_json(array_sort(collect_list("
+            "named_struct('seconds', seconds, 'n', n)))) "
+            f"AS histogram FROM (SELECT lanes, seconds, count(*) AS n FROM (SELECT lanes, "
+            f"security_wait + screening + walk + :bag * bag + :coffee * coffee + "
+            f":restroom * restroom AS seconds FROM {c}.journey_trials WHERE run_id=:run_id "
+            f"AND checkpoint=:checkpoint) GROUP BY lanes, seconds) GROUP BY lanes ORDER BY lanes",
+            parameters,
+        )
     if name != "current" or set(parameters) != {"run_id"}:
         raise ValueError("Unknown named read or parameters")
     if not re.fullmatch(r"[a-f0-9]{32}", parameters["run_id"]):
@@ -126,6 +157,17 @@ def history_query(name: str, parameters: dict, config: Config) -> ReadQuery:
             f"SELECT * FROM ({metrics}) WHERE asset_id=:asset_id ORDER BY metric", args
         )
     gates = render(sql_text("gate_health.sql"), settings)
+    if name == "busiest":
+        # Worst status first, then combined severity, queue length, gate crowd and earliest tie.
+        return ReadQuery(
+            f"WITH metrics AS ({metrics}), gates AS ({gates}) "
+            "SELECT s.ts FROM metrics s JOIN gates g ON s.ts=g.ts "
+            "JOIN metrics pax ON pax.ts=g.ts AND pax.asset_id=g.asset_id "
+            "AND pax.metric='pax_count' "
+            "WHERE s.asset_id='SECURITY' AND s.metric='queue_len' AND g.asset_id='GATE_A4' "
+            "ORDER BY greatest(s.severity,g.severity) DESC, (s.severity+g.severity) DESC, "
+            "s.value_num DESC, pax.value_num DESC, s.ts LIMIT 1", args,
+        )
     sql = (
         f"WITH metrics AS ({metrics}), gates AS ({gates}), states AS ("
         "SELECT asset_id,run_id,ts,prim_path,status,colour,severity FROM gates UNION ALL "

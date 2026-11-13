@@ -1,4 +1,7 @@
+import {localClock} from './airport-clock';
+import {layoutLabels} from './labels';
 import * as THREE from 'three';
+import {journeyPanel} from './journey';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {CSS2DRenderer,CSS2DObject} from 'three/addons/renderers/CSS2DRenderer.js';
@@ -51,6 +54,15 @@ let camera:THREE.PerspectiveCamera|THREE.OrthographicCamera;
 let controls:OrbitControls;
 const labelRenderer=new CSS2DRenderer();labelRenderer.domElement.style.cssText='position:absolute;top:0;pointer-events:none';stage.append(labelRenderer.domElement);
 const assets=new Map<string,THREE.Mesh>();
+const setJourneyPublication=journeyPanel(scene, id=>get('/api/publications/'+id+'/journeys'),
+ async step=>{
+   const images=replay.images as {step:number;push_id:string}[];
+   const recorded=new Set<string>(await get('/api/runs/'+active.run_id+'/journey-publications',request?.signal));
+   return images.filter(image=>recorded.has(image.push_id))
+     .sort((a,b)=>Math.abs(a.step-step)-Math.abs(b.step-step)||a.step-b.step);
+ },
+ (run,params)=>get('/api/journeys/'+run+'/durations?'+params),
+ id=>assets.get(id)?.getWorldPosition(new THREE.Vector3()), ()=>pause(false), ()=>replay?.airport_timezone||'America/Los_Angeles');
 let model:THREE.Group|undefined, pub:any, active:Run, generation=0, imageMode=false;
 const convert=(p:number[])=>new THREE.Vector3(p[0],p[2],-p[1]);
 
@@ -62,21 +74,22 @@ function preset(name:string){
  controls?.dispose();controls=new OrbitControls(camera,renderer.domElement);controls.target.copy(convert(data[3]));controls.enableDamping=true;controls.update();
 }
 function resize(){if(!renderer||!camera)return;const w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h);labelRenderer.setSize(w,h);if(camera instanceof THREE.PerspectiveCamera)camera.aspect=w/h;else{camera.top=45*h/w;camera.bottom=-camera.top;}camera.updateProjectionMatrix();}
-function showImage(reason:string){imageMode=true;const img=$('fallback') as HTMLImageElement;img.onerror=()=>{$('message').textContent='Frame unavailable for this publication';};img.src=apiPrefix+`/api/publications/${pub.audit.push_id}/frame.png`;img.style.display='block';renderer?.domElement.style.setProperty('display','none');labelRenderer.domElement.style.display='none';$('image').textContent='3D viewer';$('message').textContent=`${pub.image_type} · ${reason}`;}
+let auditedChip='';
+function showImage(reason:string){imageMode=true;const img=$('fallback') as HTMLImageElement;img.onerror=()=>{$('message').textContent='Frame unavailable for this publication';};img.src=apiPrefix+`/api/publications/${pub.audit.push_id}/frame.png`;img.style.display='block';renderer?.domElement.style.setProperty('display','none');labelRenderer.domElement.style.display='none';$('image').textContent='3D viewer';$('message').textContent=[auditedChip,pub.image_type,reason].filter(Boolean).join(' · ');}
 async function get(url:string,signal?:AbortSignal){const r=await fetch(apiPrefix+url,{signal});const data=await r.json();if(!r.ok)throw Object.assign(new Error(data.message||data.error||r.statusText),{status:r.status,code:data.error});return data;}
 let request:AbortController|undefined;
 let seekGeneration=0;
 let selectedGate='GATE_A4',provenanceGeneration=0;
 async function inspectGate(assetId:string,reveal=false){
- if(reveal)$('provenance').scrollIntoView({block:'start',behavior:'smooth'});
+ if(reveal){($('gate-diagnostics') as HTMLDetailsElement).open=true;$('provenance').scrollIntoView({block:'start',behavior:'smooth'});}
  selectedGate=assetId;persistState();const ticket=++provenanceGeneration,epoch=generation,push=pub?.audit.push_id;
  if(!push)return;$('gate-title').textContent=assetId.replace('GATE_','')+' · Why this color?';$('explanation').textContent='Checking publication evidence…';for(const id of ['sensors','verification','rule','source-versions','audit-details'])$(id).replaceChildren();
  try{const data=await get(`/api/publications/${push}/assets/${assetId}/provenance`,request?.signal);
   if(ticket!==provenanceGeneration||epoch!==generation||push!==pub?.audit.push_id)return;
-  $('explanation').textContent=data.explanation;$('verification').textContent=(data.verification==='verified'?'Verified against published Delta versions':data.verification)+' · '+data.sensors[0].ts;
+  $('explanation').textContent=data.explanation;$('verification').textContent=(data.verification==='verified'?'Verified against published Delta versions':data.verification)+' · '+localClock(data.sensors[0].ts,replay?.airport_timezone||'America/Los_Angeles');$('verification').title=data.sensors[0].ts+' UTC';
   $('sensors').replaceChildren(...data.sensors.map((row:any)=>{const tr=document.createElement('tr');for(const value of [row.metric,row.value_num??row.value_str,row.warn===null?'—':`${row.warn} / ${row.crit}`,row.status]){const td=document.createElement('td');td.textContent=String(value);tr.append(td);}return tr;}));
   $('rule').textContent=data.rule+' · '+data.rule_mode;$('source-versions').textContent=`Run ${data.run_id.slice(0,8)} · push ${data.push_id.slice(0,12)} · minute ${data.step}\n`+Object.entries(data.delta_versions).map(([k,v])=>`${k} v${v}`).join(' · ');
-  $('audit-details').textContent=JSON.stringify({sensors:data.sensors,details:data.details},null,2);
+  $('audit-details').textContent=JSON.stringify({sensors:data.sensors,details:data.details},(key,value)=>key==='ts'&&typeof value==='string'?localClock(value,replay?.airport_timezone||'America/Los_Angeles'):value,2);
  }catch(error){if(ticket===provenanceGeneration&&epoch===generation)$('explanation').textContent='Evidence unavailable: '+String(error);}
 }
 let replay:any,frames=new Map<number,any>(),step=0,playing=false,timer:number|undefined;
@@ -101,11 +114,14 @@ let auditUnavailable=false;
 function imageFrame(minute:number){const frame=replay.images.find((f:any)=>f.step===minute);if(!frame)throw new Error('No publication for requested minute');clearEvidence();assets.clear();step=minute;persistState();pub.audit={...pub.audit,push_id:frame.push_id,step};pub.image_type=frame.image_type;$('identity').textContent=`Run ${active.run_id}\nPush ${frame.push_id}\nSQL audit unavailable`;$('explanation').textContent='Historical source data unavailable; showing this publication’s image only.';($('timeline') as HTMLInputElement).value=String(step);$('step').textContent=`Minute ${step} / ${active.minutes-1}`;showImage('AUDIT_VERSION_UNAVAILABLE · published images only');ready(true);}
 function pause(inspect=true){++seekGeneration;playing=false;clearTimeout(timer);finishBlend?.();$('play').textContent='Play';if(inspect&&pub)void inspectGate(selectedGate);}
 function ready(enabled:boolean){
+ ($('busiest') as HTMLButtonElement).disabled=!enabled||auditUnavailable;
  for(const id of ['play','timeline'])($(id) as HTMLButtonElement|HTMLInputElement).disabled=!enabled;
  for(const id of ['overview','closeup'])($(id) as HTMLButtonElement).disabled=!enabled||!renderer||assets.size!==10;
  ($('image') as HTMLButtonElement).disabled=!enabled||auditUnavailable;
 }
 function clearEvidence(){
+ auditedChip='';
+ setJourneyPublication('');
  ++provenanceGeneration;
  for(const id of ['metrics','health','sensors','verification','rule','source-versions','audit-details','thresholds','step'])$(id).replaceChildren();
  $('gate-title').textContent='Select a gate';$('explanation').textContent='';
@@ -115,7 +131,8 @@ function clearEvidence(){
  if(renderer){renderer.domElement.dataset.assetStates='[]';renderer.domElement.dataset.blending='false';}
 }
 ready(false);
-function paint(frame:any){
+function paint(frame:any,story=false){
+ setJourneyPublication(frame.push_id,frame.step);
  step=frame.step;persistState();pub.audit={...pub.audit,push_id:frame.push_id,step};pub.image_type=frame.image_type;
  for(const row of frame.states){const mesh=assets.get(row.asset_id);if(mesh){(mesh.material as THREE.MeshStandardMaterial).color.set(row.colour);mesh.userData.status=row.status;}}
  if(renderer)renderer.domElement.dataset.assetStates=JSON.stringify([...assets].map(([id,mesh])=>({asset_id:id,status:mesh.userData.status,colour:'#'+(mesh.material as THREE.MeshStandardMaterial).color.getHexString()})));
@@ -123,7 +140,9 @@ function paint(frame:any){
  $('identity').textContent=`${active.run_name}\nRun ${active.run_id}\nPush ${frame.push_id.slice(0,12)}\nReplay ${replay.replay_id.slice(0,12)}`;
  $('metrics').replaceChildren(...Object.entries(frame.metrics).map(([key,value])=>{const p=document.createElement('p');p.textContent=`${key}: ${Number(value).toFixed(key==='avg_co2'?1:0)}`;return p;}));
  $('health').replaceChildren(...frame.states.filter((r:State)=>r.asset_id.startsWith('GATE_')).map((r:any)=>{const tr=document.createElement('tr');for(const [i,value] of [r.asset_id.replace('GATE_',''),r.status,r.pax_count].entries()){const td=document.createElement('td');if(i===0){const button=document.createElement('button');button.textContent=String(value);button.setAttribute('aria-label','Explain '+value);button.onclick=()=>void inspectGate(r.asset_id,true);td.append(button);}else td.textContent=String(value??'—');td.style.color=r.colour;tr.append(td);}return tr;}));
- $('message').textContent=`Audited minute ${step} · A4 ${frame.states.find((r:State)=>r.asset_id==='GATE_A4').status}${replay.thresholds_changed?' · Current thresholds differ; published thresholds retained':''}`;
+ const statusOf=(id:string)=>frame.states.find((r:State)=>r.asset_id===id).status;
+ auditedChip=`Audited minute ${frame.step} · A4 ${statusOf('GATE_A4')} · Security ${statusOf('SECURITY')}`;
+ $('message').textContent=auditedChip+(replay.thresholds_changed?' · Current thresholds differ; published thresholds retained':'');
  if(imageMode)showImage('Exact published minute '+step);
  if(!playing)void inspectGate(selectedGate);else{++provenanceGeneration;$('explanation').textContent='Pause to inspect this minute';for(const id of ['sensors','verification','source-versions','rule','audit-details'])$(id).replaceChildren();}
 }
@@ -132,7 +151,13 @@ async function pageAt(minute:number,epoch:number){
  let start=Math.floor(minute/60)*60;const end=Math.min(start+60,run.minutes);
  while(start<end){const page=await get(`/api/runs/${run.run_id}/timeline?replay_id=${selectedReplay.replay_id}&start_step=${start}&end_step=${end}`,signal);if(epoch!==generation)return;for(const frame of page.frames)frames.set(frame.step,frame);selectedReplay.thresholds_changed=page.thresholds_changed;start=page.end_step;}
 }
-async function seek(minute:number){if(!replay||!pub)return;const epoch=generation,ticket=++seekGeneration;try{if(auditUnavailable){imageFrame(minute);return;}if(!frames.has(minute)){$('status').textContent='Loading audited page…';await pageAt(minute,epoch);}if(epoch!==generation||ticket!==seekGeneration)return;paint(frames.get(minute));$('status').textContent='Unity Catalog connected';}catch(error){if(epoch===generation&&ticket===seekGeneration){pause(false);$('status').textContent='Audit unavailable';if((error as any).code==='AUDIT_VERSION_UNAVAILABLE'){auditUnavailable=true;imageFrame(minute);}else{clearEvidence();ready(false);pub=undefined;replay=undefined;$('message').textContent=String(error);}}}}
+async function seek(minute:number,story=false){if(!replay||!pub)return;const epoch=generation,ticket=++seekGeneration;try{if(auditUnavailable){imageFrame(minute);return;}if(!frames.has(minute)){$('status').textContent='Loading audited page…';await pageAt(minute,epoch);}if(epoch!==generation||ticket!==seekGeneration)return;paint(frames.get(minute),story);$('status').textContent='Unity Catalog connected';}catch(error){if(epoch===generation&&ticket===seekGeneration){pause(false);$('status').textContent='Audit unavailable';if((error as any).code==='AUDIT_VERSION_UNAVAILABLE'){auditUnavailable=true;imageFrame(minute);}else{clearEvidence();ready(false);pub=undefined;replay=undefined;$('message').textContent=String(error);}}}}
+$('busiest').onclick=async()=>{
+ pause(false);const epoch=generation,ticket=seekGeneration;
+ try{const result=await get('/api/runs/'+active.run_id+'/busiest?replay_id='+replay.replay_id,request?.signal);
+   if(epoch===generation && ticket===seekGeneration)await seek(result.step,true);
+ }catch{if(epoch===generation && ticket===seekGeneration)$('message').textContent='Busiest audited minute unavailable.';}
+};
 async function tick(){if(!playing)return;if(step>=active.minutes-1){pause();return;}await seek(step+1);if(playing)timer=window.setTimeout(tick,250);}
 $('play').onclick=()=>{if(playing||finishBlend){pause();return;}playing=true;$('play').textContent='Pause';if(step>=active.minutes-1)void seek(0).then(tick);else void tick();};
 $('timeline').addEventListener('input',()=>{pause();void seek(Number(($('timeline') as HTMLInputElement).value));});
@@ -161,7 +186,16 @@ async function select(run:Run){
    if(assets.size!==10)throw new Error('Expected ten stable asset nodes');
    for(const row of rows){const mesh=assets.get(row.asset_id)!;(mesh.material as THREE.MeshStandardMaterial).color.set(row.colour);mesh.userData.status=row.status;}
    renderer.domElement.dataset.assetStates=JSON.stringify([...assets].map(([id,mesh])=>({asset_id:id,status:mesh.userData.status,colour:'#'+(mesh.material as THREE.MeshStandardMaterial).color.getHexString()})));
-   for(const row of pub.labels){const element=document.createElement('div');element.className='label';element.textContent=row.text;const label=new CSS2DObject(element);label.center.set(0.5,1);label.position.copy(convert(row.anchor));model.add(label);}
+   for(const row of pub.labels){
+     const mesh=assets.get(row.asset_id)!;
+     const bounds=new THREE.Box3().setFromObject(mesh);
+     const anchor=bounds.getCenter(new THREE.Vector3());
+     anchor.y=bounds.max.y+.2;
+     const element=document.createElement('div');
+     element.className='label';element.textContent=row.text;
+     const label=new CSS2DObject(element);
+     label.center.set(.5,1);label.position.copy(mesh.worldToLocal(anchor));mesh.add(label);
+   }
    if(!imageMode)labelRenderer.domElement.style.display='block';preset('Overview');resize();
   }catch(error){if(epoch!==generation)return;showImage(String(error));}}
   else showImage('WebGL unavailable');
@@ -174,8 +208,8 @@ async function select(run:Run){
   if(run.minutes>60)void pageAt(0,epoch).catch(()=>{});
  }catch(error){if(epoch===generation){$('status').textContent='Audit unavailable';if((error as any).code==='AUDIT_VERSION_UNAVAILABLE'&&pub){auditUnavailable=true;($('timeline') as HTMLInputElement).max=String(run.minutes-1);imageFrame(run.minutes-1);ready(true);}else{clearEvidence();ready(false);pub=undefined;replay=undefined;$('identity').textContent=`Run ${run.run_id} · replay unavailable`;$('message').textContent=(error as any).code==='REPLAY_NOT_FOUND'?'This replay is no longer available. Refresh the run list or choose another available run.':String(error);}}}
 }
-try{renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.outputColorSpace=THREE.SRGBColorSpace;stage.prepend(renderer.domElement);renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();if(pub)showImage('Graphics context lost');});scene.add(new THREE.HemisphereLight(0xffffff,0x7a8591,3));const light=new THREE.DirectionalLight(0xffffff,2);light.position.set(20,60,30);scene.add(light);renderer.setAnimationLoop(()=>{if(camera&&!imageMode){controls.update();renderer!.render(scene,camera);labelRenderer.render(scene,camera);}});}catch{renderer=undefined;}
-$('overview').onclick=()=>{preset('Overview');resize();};$('closeup').onclick=()=>{preset('A4CloseUp');resize();};$('image').onclick=()=>{if(imageMode&&renderer&&model){imageMode=false;renderer.domElement.style.display='block';labelRenderer.domElement.style.display='block';$('fallback').style.display='none';$('image').textContent='Image playback';$('message').textContent='Live SQL state';}else if(pub)showImage('Selected');};new ResizeObserver(resize).observe(stage);
+try{renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.outputColorSpace=THREE.SRGBColorSpace;stage.prepend(renderer.domElement);renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();if(pub)showImage('Graphics context lost');});scene.add(new THREE.HemisphereLight(0xffffff,0x7a8591,3));const light=new THREE.DirectionalLight(0xffffff,2);light.position.set(20,60,30);scene.add(light);renderer.setAnimationLoop(()=>{if(camera&&!imageMode){controls.update();renderer!.render(scene,camera);labelRenderer.render(scene,camera);layoutLabels(labelRenderer.domElement);}});}catch{renderer=undefined;}
+$('overview').onclick=()=>{preset('Overview');resize();};$('closeup').onclick=()=>{preset('A4CloseUp');resize();};$('image').onclick=()=>{if(imageMode&&renderer&&model){imageMode=false;renderer.domElement.style.display='block';labelRenderer.domElement.style.display='block';$('fallback').style.display='none';$('image').textContent='Image playback';$('message').textContent=auditedChip;}else if(pub)showImage('Selected');};new ResizeObserver(resize).observe(stage);
 if(renderer){
  let pointerDown:[number,number]=[0,0];
  renderer.domElement.addEventListener('pointerdown',event=>{pointerDown=[event.clientX,event.clientY];});

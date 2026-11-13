@@ -1,8 +1,69 @@
 // Synthetic HTTP contract tests; the live project separately tests Delta and MLflow.
 import {test,expect} from '@playwright/test';
+import {placeLabels} from '../src/labels';
+import {countdown,localClock} from '../src/airport-clock';
+test('airport clock observes daylight saving and boarding close',()=>{
+ expect(localClock('2026-11-09T22:30:00','America/Los_Angeles')).toContain('2:30 PM PST');
+ expect(localClock('2026-07-09T22:30:00Z','America/Los_Angeles')).toContain('3:30 PM PDT');
+ expect([60,0.1,0,-1].map(countdown)).toEqual(['01:00','00:01','00:00','00:00']);
+});
+test('security markers and asset tags fit a phone camera viewport without intersection',()=>{
+ // A5, Security, Bag drop, Coffee, Restroom and the five overlapping route markers.
+ const boxes=[36,60,65,49,65,22,22,22,22,22].map(width=>({x:1,y:4,width,height:23}));
+ const placed=placeLabels(boxes,320,240);
+ for(const [i,b] of placed.entries()){
+   expect(b.x).toBeGreaterThanOrEqual(0);expect(b.y+b.height).toBeLessThanOrEqual(240);
+   for(const p of placed.slice(0,i))expect(b.x+b.width<=p.x || p.x+p.width<=b.x ||
+     b.y+b.height<=p.y || p.y+p.height<=b.y).toBeTruthy();
+ }
+});
 import {readFile} from 'node:fs/promises';
 const ids=['a'.repeat(32),'b'.repeat(32)];
 let metadata:any;
+test('recorded passenger choices and odds survive a scene minute change',async({page})=>{
+ await page.route('**/journeys',async route=>route.fulfill({contentType:'application/json',
+   body:await readFile('.local/contracts/journey.json')}));
+ await page.goto('/');
+ await expect(page.locator('#status')).toHaveText('Unity Catalog connected');
+ await page.getByRole('button',{name:'Explore this minute'}).click();
+ await expect(page.locator('[data-outcome]')).toContainText('30 ahead');
+ expect(await page.locator('body').innerText()).not.toMatch(/[{}]/);
+ const style=await page.locator('.chance').first().evaluate(el=>{
+   const css=getComputedStyle(el);
+   return {size:parseFloat(css.fontSize),weight:Number(css.fontWeight),color:css.color,
+     band:el.classList[1]};
+ });
+ expect(style.size).toBeGreaterThanOrEqual(28);expect(style.weight).toBeGreaterThanOrEqual(700);
+ expect(style.color).toBe(({likely:'rgb(34, 197, 94)',uncertain:'rgb(245, 158, 11)',
+   unlikely:'rgb(251, 119, 119)'} as Record<string,string>)[style.band]);
+ await page.getByLabel('Checkpoint').selectOption('precheck');
+ await page.getByLabel('Coffee',{exact:true}).check();
+ await expect(page.locator('[data-outcome]')).toContainText('10 ahead');
+ await page.route('**/durations?**',route=>route.fulfill({json:[
+   {lanes:1,histogram:[{seconds:900,n:30},{seconds:901,n:70}]},
+   {lanes:2,histogram:[{seconds:900,n:60},{seconds:901,n:40}]},
+ ]}));
+ await page.getByRole('spinbutton').fill('15');
+ await expect(page.locator('.chance')).toHaveText(['30.0%','60.0%']);
+ await expect(page.locator('.lane-count')).toHaveText(['1 lane','+1 lane']);
+ await expect(page.locator('.chance-pair a')).toHaveText(['Open in MLflow','Open in MLflow']);
+ await page.getByLabel('Arrival time reference').selectOption('departure');
+ await expect(page.locator('[data-outcome]')).toContainText('0.0 min to reach the gate');
+ await expect(page.locator('.chance').first()).toHaveText('0.0%');
+ await expect(page.locator('.chance')).toHaveCount(1);
+ await expect(page.locator('[data-outcome]')).toContainText("An extra lane wouldn't change your odds");
+ await expect(page.locator('[data-route]')).toContainText('Coffee');
+ await expect(page.locator('#gate-diagnostics')).not.toHaveAttribute('open','');
+ await page.getByLabel('Replay trial 1').selectOption({index:1});
+ await page.getByRole('button',{name:'Play passenger journey'}).click();
+ await expect(page.locator('[data-clock]')).toContainText('Bag drop');
+ await page.locator('#timeline').fill('100');
+ await expect(page.locator('[data-story]')).toContainText('Scene at minute 100 · Journey recorded at minute 119');
+ await expect(page.getByLabel('Coffee',{exact:true})).toBeChecked();
+ await expect(page.getByRole('spinbutton')).toHaveValue('15');
+ await expect(page.locator('.chance')).toHaveText('0.0%');
+ await expect(page.locator('[data-clock]')).toBeEmpty();
+});
 test.beforeAll(async()=>{metadata=JSON.parse(await readFile('.local/contracts/metadata.json','utf8'));});
 test.beforeEach(async({page})=>{
  await page.route('**/api/**',async route=>{
@@ -25,6 +86,7 @@ test('tight provenance, accessible selection, geometry picking and explicit comp
  await expect(page.locator('#sensors tr')).toHaveCount(5);
  await expect(page.locator('#provenance-details')).not.toHaveAttribute('open','');
  await expect(page.locator('#compare')).toHaveAttribute('href',/compare-runs.*aaaaaaaa.*bbbbbbbb/);
+ await page.locator('#gate-diagnostics > summary').click();
  await page.getByRole('button',{name:'Explain A1',exact:true}).click();
  await expect(page.locator('#gate-title')).toContainText('A1');
  await page.getByRole('button',{name:'Gate A4 close-up'}).click();

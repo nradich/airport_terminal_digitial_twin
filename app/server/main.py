@@ -61,6 +61,7 @@ def replays(run_id: str):
     return [
         {
             **{k: value for k, value in item.items() if k != "publications"},
+            "airport_timezone": app.state.data.config.airport_timezone,
             "images": [
                 {"step": step, "push_id": p["audit"]["push_id"], "image_type": p["image_type"]}
                 for step, p in sorted(item["publications"].items())
@@ -77,6 +78,31 @@ def timeline(run_id: str, replay_id: str, start_step: int = 0, end_step: int = 6
     return read_timeline(app.state.data, run_id, replay_id, start_step, end_step)
 
 
+@app.get("/api/runs/{run_id}/busiest")
+def busiest(run_id: str, replay_id: str):
+    from datetime import datetime, timedelta
+
+    from airport_twin.app_replay import replay_sets
+
+    data = app.state.data
+    replay = next((r for r in replay_sets(data, run_id) if r["replay_id"] == replay_id), None)
+    if not replay:
+        raise ReadError("REPLAY_NOT_FOUND", status=404)
+    start = datetime.fromisoformat(replay["start_ts"])
+    rows = data.sql.read("busiest", {
+        "run_id": run_id, "start_ts": start.isoformat(),
+        "end_ts": (start + timedelta(minutes=replay["minutes"])).isoformat(),
+        "versions": replay["identity"]["delta_versions"],
+        "thresholds": replay["identity"]["thresholds"],
+    })
+    if not rows:
+        raise ReadError("AUDIT_INCOMPLETE", status=409)
+    elapsed = (datetime.fromisoformat(str(rows[0]["ts"])) - start).total_seconds()
+    if elapsed % 60 or int(elapsed // 60) not in replay["publications"]:
+        raise ReadError("AUDIT_OFF_GRID", status=409)
+    return {"step": int(elapsed // 60)}
+
+
 @app.get("/api/publications/{push_id}")
 def publication(push_id: str):
     return app.state.data.publication(push_id)
@@ -87,11 +113,61 @@ def model(push_id: str):
     return Response(app.state.data.model(push_id), media_type="model/gltf-binary")
 
 
+@app.get("/api/publications/{push_id}/journeys")
+def journeys(push_id: str):
+    import json
+
+    from airport_twin.tracking import assert_run, run_url
+
+    data = app.state.data
+    publication = data.publication(push_id)["audit"]
+    results = []
+    for row in data.sql.read("journeys", {"push_id": push_id}):
+        run = assert_run(data.config, row["run_id"])
+        if run.info.status != "FINISHED":
+            continue
+        inputs = json.loads(row["input_json"])
+        if (row["source_run"] != publication["run_id"] or inputs["push_id"] != push_id
+                or run.data.tags.get("mlflow.parentRunId") != publication["run_id"]
+                or run.data.tags.get("journey.push_id") != push_id):
+            raise ReadError("JOURNEY_SOURCE_MISMATCH", status=409)
+        results.append(dict(inputs=inputs, profiles=json.loads(row["summary_json"]),
+                            run_id=row["run_id"], url=run_url(data.config, row["run_id"])))
+    return results
+
+
+@app.get("/api/runs/{run_id}/journey-publications")
+def journey_publications(run_id: str):
+    return [row["push_id"] for row in app.state.data.sql.read(
+        "journey_publications", {"run_id": run_id},
+    )]
+
+
 @app.get("/api/publications/{push_id}/assets/{asset_id}/provenance")
 def provenance(push_id: str, asset_id: str):
     from airport_twin.provenance import gate_provenance
 
     return gate_provenance(app.state.data, push_id, asset_id)
+
+
+@app.get("/api/journeys/{run_id}/durations")
+def journey_durations(run_id: str, checkpoint: str, bag: bool, coffee: bool, restroom: bool):
+    import json
+
+    from airport_twin.tracking import assert_run
+
+    data = app.state.data
+    run = assert_run(data.config, run_id)
+    if run.info.status != "FINISHED" or not run.data.tags.get("journey.push_id"):
+        raise ReadError("JOURNEY_NOT_FOUND", status=404)
+    rows = data.sql.read("journey_durations", dict(
+        run_id=run_id, checkpoint=checkpoint, bag=int(bag),
+        coffee=int(coffee), restroom=int(restroom),
+    ))
+    for row in rows:
+        if isinstance(row["histogram"], str):
+            row["histogram"] = json.loads(row["histogram"])
+    return rows
 
 
 @app.get("/api/publications/{push_id}/frame.png")
