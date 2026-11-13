@@ -8,7 +8,8 @@ test('airport clock observes daylight saving and boarding close',()=>{
  expect([60,0.1,0,-1].map(countdown)).toEqual(['01:00','00:01','00:00','00:00']);
 });
 test('security markers and asset tags fit a phone camera viewport without intersection',()=>{
- const boxes=[60,22,22,22,65].map(width=>({x:1,y:4,width,height:23}));
+ // A5, Security, Bag drop, Coffee, Restroom and the five overlapping route markers.
+ const boxes=[36,60,65,49,65,22,22,22,22,22].map(width=>({x:1,y:4,width,height:23}));
  const placed=placeLabels(boxes,320,240);
  for(const [i,b] of placed.entries()){
    expect(b.x).toBeGreaterThanOrEqual(0);expect(b.y+b.height).toBeLessThanOrEqual(240);

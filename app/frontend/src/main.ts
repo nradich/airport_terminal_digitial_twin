@@ -176,7 +176,16 @@ async function select(run:Run){
    if(assets.size!==10)throw new Error('Expected ten stable asset nodes');
    for(const row of rows){const mesh=assets.get(row.asset_id)!;(mesh.material as THREE.MeshStandardMaterial).color.set(row.colour);mesh.userData.status=row.status;}
    renderer.domElement.dataset.assetStates=JSON.stringify([...assets].map(([id,mesh])=>({asset_id:id,status:mesh.userData.status,colour:'#'+(mesh.material as THREE.MeshStandardMaterial).color.getHexString()})));
-   for(const row of pub.labels){const element=document.createElement('div');element.className='label';element.textContent=row.text;const label=new CSS2DObject(element);label.center.set(0.5,1);label.position.copy(convert(row.anchor));model.add(label);}
+   for(const row of pub.labels){
+     const mesh=assets.get(row.asset_id)!;
+     const bounds=new THREE.Box3().setFromObject(mesh);
+     const anchor=bounds.getCenter(new THREE.Vector3());
+     anchor.y=bounds.max.y+.2;
+     const element=document.createElement('div');
+     element.className='label';element.textContent=row.text;
+     const label=new CSS2DObject(element);
+     label.center.set(.5,1);label.position.copy(mesh.worldToLocal(anchor));mesh.add(label);
+   }
    if(!imageMode)labelRenderer.domElement.style.display='block';preset('Overview');resize();
   }catch(error){if(epoch!==generation)return;showImage(String(error));}}
   else showImage('WebGL unavailable');

@@ -20,7 +20,9 @@ export function placeLabels(boxes:Box[],width:number,height:number):Box[]{
 
 let last='';
 export function layoutLabels(root:HTMLElement){
-  const nodes=Array.from(root.querySelectorAll<HTMLElement>('.label,.amenity-sign,.route-number'))
+  // Reserve the projected block tops before placing amenity signs and route markers.
+  const nodes=['.label','.amenity-sign','.route-number']
+    .flatMap(selector=>Array.from(root.querySelectorAll<HTMLElement>(selector)))
     .filter(node=>node.style.display!=='none');
   const signature=[root.clientWidth,root.clientHeight,...nodes.map(n=>n.style.transform+n.textContent+n.offsetWidth+','+n.offsetHeight)].join('|');
   if(signature===last && nodes.every(n=>n.style.translate))return;
