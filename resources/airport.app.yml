@@ -47,6 +47,11 @@ targets:
                 securable_type: TABLE
                 securable_full_name: ${var.catalog}.${var.schema}.gate_health
                 permission: SELECT
+            - name: journey-experiments-table
+              uc_securable:
+                securable_type: TABLE
+                securable_full_name: ${var.catalog}.${var.schema}.journey_experiments
+                permission: SELECT
             - name: latest-state-view
               uc_securable:
                 securable_type: TABLE
