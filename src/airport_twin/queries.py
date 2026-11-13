@@ -37,6 +37,13 @@ def build_query(name: str, parameters: dict, config: Config) -> ReadQuery:
         return ReadQuery(plain[name], {})
     if name in {"history", "raw_history", "raw_count", "asset_provenance", "busiest"}:
         return history_query(name, parameters, config)
+    if name == "journey_publications" and set(parameters) == {"run_id"}:
+        if not re.fullmatch(r"[0-9a-f]{32}", parameters["run_id"]):
+            raise ValueError("Invalid source run")
+        return ReadQuery(
+            f"SELECT DISTINCT push_id FROM {c}.journey_experiments WHERE source_run=:run_id",
+            parameters,
+        )
     if name == "journeys" and set(parameters) == {"push_id"}:
         if not re.fullmatch(r"[0-9a-f]{64}", parameters["push_id"]):
             raise ValueError("Invalid journey publication")

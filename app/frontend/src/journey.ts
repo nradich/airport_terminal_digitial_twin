@@ -14,6 +14,7 @@ const percent = (p:number) => (100*p).toFixed(1)+'%';
 const minutes = (s:number) => (s/60).toFixed(1)+' min';
 
 export function journeyPanel(scene:THREE.Scene, load:(id:string)=>Promise<Experiment[]>,
+                             recorded:(step:number)=>Promise<{step:number;push_id:string}[]>,
                              durations:(run:string,params:URLSearchParams)=>Promise<
                                {lanes:number;histogram:{seconds:number;n:number}[]}[]>,
                              gatePoint:(id:string)=>THREE.Vector3|undefined, pause:()=>void, zone:()=>string) {
@@ -65,9 +66,14 @@ export function journeyPanel(scene:THREE.Scene, load:(id:string)=>Promise<Experi
     el('play').textContent='Play passenger journey'; frame=0;
     activeStep(-1);
   }
-  function selectPublication(next:string,storyStep?:number) {
-    if(storyStep!==undefined && experiments.length && !el('controls').hidden){
-      stop();el('story').textContent='Scene at minute '+storyStep+' · Journey odds use the queue at '+localClock(experiment.inputs.entry,zone())+'.';return;
+  let sceneMinute=0, journeyMinute=0;
+  function showSource(){
+    el('story').textContent='Scene at minute '+sceneMinute+' · Journey recorded at minute '+journeyMinute+'.';
+  }
+  function selectPublication(next:string,step=0) {
+    sceneMinute=step;
+    if(next && experiments.length && !el('controls').hidden){
+      id=next;stop();showSource();return;
     }
     el('story').textContent='';
     ++generation; id=next; stop(); experiments=[]; el('controls').hidden=true;
@@ -161,15 +167,32 @@ export function journeyPanel(scene:THREE.Scene, load:(id:string)=>Promise<Experi
     detail.append(support+chosen.ahead+' ahead of you in '+(chosen.kind==='standard'?'standard security.':'TSA PreCheck.'));
   }
   async function read(manual:boolean){
-    clearTimeout(sourceTimer);if(manual)pause(); const ticket=++generation; stop(); el('controls').hidden=true;
-    el('status').textContent='Reading recorded journeys…';
-    try { const data=await load(id); if(ticket!==generation)return;
-      experiments=data;
-      if(!data.length){el('status').textContent='No journey recorded for this minute.';return;}
+    clearTimeout(sourceTimer);if(manual)pause(); const ticket=++generation;
+    const selected=id, minute=sceneMinute;
+    if(!experiments.length)el('status').textContent='Reading recorded journeys…';
+    try { let data=await load(selected); if(ticket!==generation || selected!==id)return;
+      let source=minute;
+      if(!data.length && !experiments.length){
+        const candidates=await recorded(minute);
+        for(const candidate of candidates){
+          if(ticket!==generation || selected!==id)return;
+          if(candidate.push_id===selected)continue;
+          data=await load(candidate.push_id);
+          if(data.length){source=candidate.step;break;}
+        }
+      }
+      if(ticket!==generation || selected!==id)return;
+      if(!data.length){
+        if(experiments.length){showSource();el('story').textContent+=' No journey was recorded for this scene minute.';}
+        else el('status').textContent='No passenger journey has been recorded for this replay.';
+        return;
+      }
+      if(experiments.length && source===journeyMinute){showSource();return;}
+      experiments=data;journeyMinute=source;showSource();
       run.replaceChildren(...data.map(e=>new Option(e.inputs.flight+' · '+e.run_id.slice(0,8),e.run_id)));
       arrival.value=String(Math.max(0,data[0].inputs.budget/60));reference.value='close';
       el('controls').hidden=false;render();
-    } catch {if(ticket===generation)el('status').textContent='Journey data unavailable for this minute.';}
+    } catch {if(ticket===generation && selected===id)el(experiments.length?'story':'status').textContent='Journey lookup unavailable for this minute.';}
   }
   el('load').onclick=()=>void read(true);
   arrival.oninput=()=>void estimate();

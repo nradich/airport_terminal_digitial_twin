@@ -55,6 +55,12 @@ let controls:OrbitControls;
 const labelRenderer=new CSS2DRenderer();labelRenderer.domElement.style.cssText='position:absolute;top:0;pointer-events:none';stage.append(labelRenderer.domElement);
 const assets=new Map<string,THREE.Mesh>();
 const setJourneyPublication=journeyPanel(scene, id=>get('/api/publications/'+id+'/journeys'),
+ async step=>{
+   const images=replay.images as {step:number;push_id:string}[];
+   const recorded=new Set<string>(await get('/api/runs/'+active.run_id+'/journey-publications',request?.signal));
+   return images.filter(image=>recorded.has(image.push_id))
+     .sort((a,b)=>Math.abs(a.step-step)-Math.abs(b.step-step)||a.step-b.step);
+ },
  (run,params)=>get('/api/journeys/'+run+'/durations?'+params),
  id=>assets.get(id)?.getWorldPosition(new THREE.Vector3()), ()=>pause(false), ()=>replay?.airport_timezone||'America/Los_Angeles');
 let model:THREE.Group|undefined, pub:any, active:Run, generation=0, imageMode=false;
@@ -126,7 +132,7 @@ function clearEvidence(){
 }
 ready(false);
 function paint(frame:any,story=false){
- setJourneyPublication(frame.push_id,story?frame.step:undefined);
+ setJourneyPublication(frame.push_id,frame.step);
  step=frame.step;persistState();pub.audit={...pub.audit,push_id:frame.push_id,step};pub.image_type=frame.image_type;
  for(const row of frame.states){const mesh=assets.get(row.asset_id);if(mesh){(mesh.material as THREE.MeshStandardMaterial).color.set(row.colour);mesh.userData.status=row.status;}}
  if(renderer)renderer.domElement.dataset.assetStates=JSON.stringify([...assets].map(([id,mesh])=>({asset_id:id,status:mesh.userData.status,colour:'#'+(mesh.material as THREE.MeshStandardMaterial).color.getHexString()})));

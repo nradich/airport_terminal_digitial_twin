@@ -20,7 +20,7 @@ test('security markers and asset tags fit a phone camera viewport without inters
 import {readFile} from 'node:fs/promises';
 const ids=['a'.repeat(32),'b'.repeat(32)];
 let metadata:any;
-test('recorded passenger choices and paired replay clear on minute change',async({page})=>{
+test('recorded passenger choices and odds survive a scene minute change',async({page})=>{
  await page.route('**/journeys',async route=>route.fulfill({contentType:'application/json',
    body:await readFile('.local/contracts/journey.json')}));
  await page.goto('/');
@@ -58,7 +58,10 @@ test('recorded passenger choices and paired replay clear on minute change',async
  await page.getByRole('button',{name:'Play passenger journey'}).click();
  await expect(page.locator('[data-clock]')).toContainText('Bag drop');
  await page.locator('#timeline').fill('100');
- await expect(page.locator('[data-controls]')).toBeHidden();
+ await expect(page.locator('[data-story]')).toContainText('Scene at minute 100 · Journey recorded at minute 119');
+ await expect(page.getByLabel('Coffee',{exact:true})).toBeChecked();
+ await expect(page.getByRole('spinbutton')).toHaveValue('15');
+ await expect(page.locator('.chance')).toHaveText('0.0%');
  await expect(page.locator('[data-clock]')).toBeEmpty();
 });
 test.beforeAll(async()=>{metadata=JSON.parse(await readFile('.local/contracts/metadata.json','utf8'));});

@@ -136,6 +136,13 @@ def journeys(push_id: str):
     return results
 
 
+@app.get("/api/runs/{run_id}/journey-publications")
+def journey_publications(run_id: str):
+    return [row["push_id"] for row in app.state.data.sql.read(
+        "journey_publications", {"run_id": run_id},
+    )]
+
+
 @app.get("/api/publications/{push_id}/assets/{asset_id}/provenance")
 def provenance(push_id: str, asset_id: str):
     from airport_twin.provenance import gate_provenance
